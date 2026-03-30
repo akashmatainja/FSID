@@ -200,8 +200,66 @@ export default function LoginPage() {
           </form>
         </div>
         
+        {/* Sample Credentials */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="glass-card p-6 mt-6 border border-border/30"
+        >
+          <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+            <svg className="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+            Sample Credentials
+          </h3>
+          
+          <div className="space-y-3">
+            {/* Superadmin */}
+            <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-red-500 uppercase tracking-wider">Superadmin</span>
+                <span className="text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 font-medium">Full Access</span>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-mono text-muted-foreground">Email: superadmin@platform.com</p>
+                <p className="text-xs font-mono text-muted-foreground">Password: Super1234!</p>
+              </div>
+            </div>
+
+            {/* Company Admin */}
+            <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-blue-500 uppercase tracking-wider">Company Admin</span>
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium">Company Access</span>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-mono text-muted-foreground">Email: utpal@gmail.com</p>
+                <p className="text-xs font-mono text-muted-foreground">Password: 123456</p>
+              </div>
+            </div>
+
+            {/* Regular User */}
+            <div className="p-3 rounded-lg bg-background/50 border border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-green-500 uppercase tracking-wider">Regular User</span>
+                <span className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 font-medium">Limited Access</span>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-mono text-muted-foreground">Email: saroj@gmail.com</p>
+                <p className="text-xs font-mono text-muted-foreground">Password: 123456</p>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-xs text-muted-foreground mt-4 text-center">
+            Use these credentials to explore different user roles and permissions
+          </p>
+        </motion.div>
+        
         {/* Footer info */}
-        <p className="text-center text-xs font-medium text-muted-foreground mt-8">
+        <p className="text-center text-xs font-medium text-muted-foreground mt-6">
           Protected by enterprise-grade security. <br/>By signing in, you agree to our Terms of Service.
         </p>
       </motion.div>
