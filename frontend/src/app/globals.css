@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 249 250 251; /* slate-50 */
+    --foreground: 15 23 42;    /* slate-900 */
+    --card: 255 255 255;
+    --card-foreground: 15 23 42;
+    --border: 226 232 240;     /* slate-200 */
+    --input: 226 232 240;
+    --primary: 20 184 166;     /* teal-500 */
+    --primary-foreground: 255 255 255;
+    --muted: 241 245 249;      /* slate-100 */
+    --muted-foreground: 100 116 139; /* slate-500 */
+    --accent: 241 245 249;
+    --destructive: 239 68 68;
+    --radius: 0.75rem;
+    --sidebar-width: 260px;
+  }
+
+  .dark {
+    --background: 15 23 42;    /* slate-900 */
+    --foreground: 248 250 252; /* slate-50 */
+    --card: 30 41 59;          /* slate-800 */
+    --card-foreground: 248 250 252;
+    --border: 51 65 85;        /* slate-700 */
+    --input: 51 65 85;
+    --primary: 45 212 191;     /* teal-400 */
+    --primary-foreground: 15 23 42;
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184; /* slate-400 */
+    --accent: 30 41 59;
+    --destructive: 239 68 68;
+  }
+
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-brand-500/30 selection:text-brand-900 dark:selection:text-brand-100;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .bg-background { background-color: rgb(var(--background)); }
+  .bg-card       { background-color: rgb(var(--card)); }
+  .text-foreground { color: rgb(var(--foreground)); }
+  .text-muted-foreground { color: rgb(var(--muted-foreground)); }
+  .border-border  { border-color: rgb(var(--border)); }
+
+  /* Modern Corporate Glass Card */
+  .glass-card {
+    background-color: rgb(var(--card) / 0.8);
+    @apply backdrop-blur-md border border-white/20 dark:border-white/10 shadow-glass transition-all duration-300 hover:shadow-glass-hover;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           transition-all duration-200 cursor-pointer border border-transparent;
+    color: rgb(var(--muted-foreground));
+  }
+  .sidebar-item:hover {
+    @apply bg-brand-50/50 dark:bg-brand-900/20 text-foreground border-brand-100 dark:border-brand-800/30;
+  }
+  .sidebar-item.active {
+    @apply bg-brand-500 text-white shadow-md shadow-brand-500/20 border-brand-400/50 dark:border-brand-400/20;
+  }
+  .sidebar-item.active .lucide {
+    @apply text-white;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-lg;
+    background-color: rgb(var(--muted));
+  }
+
+  /* Modern Button Styles */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-xl font-medium shadow-sm 
+           transition-all duration-200 hover:bg-brand-600 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-foreground border border-border rounded-xl font-medium shadow-sm 
+           transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 3px; background: rgb(var(--border)); }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted-foreground) / 0.5); }

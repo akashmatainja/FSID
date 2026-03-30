@@ -1,0 +1,16 @@
+{
+  "name": "companyuser",
+  "version": "1.0.0",
+  "description": "A production-ready, multi-tenant SaaS platform for real-time machine monitoring with strict tenant isolation, role-based access control, and live dashboard updates.",
+  "main": "create_users.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.2"
+  }
+}

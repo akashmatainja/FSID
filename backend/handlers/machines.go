@@ -1,0 +1,447 @@
+package handlers
+
+import (
+	"strings"
+	"time"
+
+	"github.com/companyuser/backend/database"
+	"github.com/companyuser/backend/middleware"
+	"github.com/companyuser/backend/models"
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// GET /api/v1/machines
+func ListMachines(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+
+	var machines []models.Machine
+	var err error
+
+	if auth.Permissions["superadmin"] {
+		// Superadmin can see all machines with company info
+		err = database.DB.
+			Preload("Company").
+			Order("created_at DESC").
+			Find(&machines).Error
+
+		// If preload doesn't work, manually load company data
+		if err == nil {
+			for i := range machines {
+				var company models.Company
+				if database.DB.First(&company, "id = ?", machines[i].CompanyID).Error == nil {
+					machines[i].Company = company
+				}
+			}
+		}
+	} else {
+		// Regular users only see machines from their company
+		err = database.DB.
+			Where("company_id = ?", auth.CompanyID).
+			Order("created_at DESC").
+			Find(&machines).Error
+	}
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(machines)
+}
+
+// GET /api/v1/machines/:id
+func GetMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		// Superadmin can access any machine
+		query = database.DB.Where("id = ?", id)
+	} else {
+		// Regular users can only access machines in their company
+		query = database.DB.Where("id = ? AND company_id = ?", id, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Preload company data for superadmin
+	if auth.Permissions["superadmin"] {
+		if database.DB.Preload("Company").First(&machine, "id = ?", id).Error == nil {
+			// Company data loaded successfully
+		}
+
+		// Manual company loading fallback
+		if machine.Company.ID == uuid.Nil {
+			var company models.Company
+			if database.DB.First(&company, "id = ?", machine.CompanyID).Error == nil {
+				machine.Company = company
+			}
+		}
+	}
+
+	return c.JSON(machine)
+}
+
+// POST /api/v1/machines
+func CreateMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+
+	var req struct {
+		Name     string `json:"name"`
+		Code     string `json:"code"`
+		Location string `json:"location"`
+		Status   string `json:"status"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+	if req.Status == "" {
+		req.Status = "active"
+	}
+
+	m := models.Machine{
+		ID:        uuid.New(),
+		CompanyID: auth.CompanyID,
+		Name:      req.Name,
+		Code:      req.Code,
+		Location:  req.Location,
+		Status:    req.Status,
+		CreatedAt: time.Now(),
+	}
+	if err := database.DB.Create(&m).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(201).JSON(m)
+}
+
+// PUT /api/v1/machines/:id
+func UpdateMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		// Superadmin can update any machine
+		query = database.DB.Where("id = ?", id)
+	} else {
+		// Regular users can only update machines in their company
+		query = database.DB.Where("id = ? AND company_id = ?", id, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	var req struct {
+		Name      string `json:"name"`
+		Code      string `json:"code"`
+		Location  string `json:"location"`
+		Status    string `json:"status"`
+		CompanyID string `json:"company_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+
+	// Build updates map
+	updates := map[string]interface{}{
+		"name":     req.Name,
+		"code":     req.Code,
+		"location": req.Location,
+		"status":   req.Status,
+	}
+
+	// Only superadmin can change company
+	if auth.Permissions["superadmin"] && req.CompanyID != "" {
+		// Validate company exists
+		var company models.Company
+		if database.DB.First(&company, "id = ?", req.CompanyID).Error != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "company not found"})
+		}
+		updates["company_id"] = req.CompanyID
+	}
+
+	if err := database.DB.Model(&machine).Updates(updates).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Reload machine with company data
+	if err := database.DB.Preload("Company").First(&machine, "id = ?", id).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to reload machine"})
+	}
+
+	// Manual company loading fallback
+	if machine.Company.ID == uuid.Nil {
+		var company models.Company
+		if database.DB.First(&company, "id = ?", machine.CompanyID).Error == nil {
+			machine.Company = company
+		}
+	}
+
+	return c.JSON(machine)
+}
+
+// DELETE /api/v1/machines/:id
+func DeleteMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	if err := database.DB.
+		Where("id = ? AND company_id = ?", id, auth.CompanyID).
+		Delete(&models.Machine{}).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(204)
+}
+
+// GET /api/v1/machines/:id/stats
+func GetMachineStats(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		// Superadmin can access any machine's stats
+		query = database.DB.Where("id = ?", id)
+	} else {
+		// Regular users need to verify machine belongs to their company
+		query = database.DB.Where("id = ? AND company_id = ?", id, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// For regular users, check if they have access to this machine's stats
+	if !auth.Permissions["superadmin"] && !auth.Permissions["stats.read_all"] {
+		var count int64
+		database.DB.Model(&models.MachineAssignment{}).
+			Where("user_id = ? AND machine_id = ?", auth.CompanyUser.ID, id).
+			Count(&count)
+		if count == 0 {
+			return c.Status(403).JSON(fiber.Map{"error": "not assigned to this machine"})
+		}
+	}
+
+	// Query params
+	metricKey := c.Query("metric_key")
+	since := c.Query("since") // ISO timestamp
+	limit := 200
+
+	query = database.DB.Model(&models.MachineStat{}).
+		Where("machine_id = ?", id).
+		Order("ts DESC").
+		Limit(limit)
+
+	if metricKey != "" {
+		query = query.Where("metric_key = ?", metricKey)
+	}
+	if since != "" {
+		t, err := time.Parse(time.RFC3339, since)
+		if err == nil {
+			query = query.Where("ts >= ?", t)
+		}
+	}
+
+	var stats []models.MachineStat
+	query.Find(&stats)
+	return c.JSON(stats)
+}
+
+// POST /api/v1/machines/:id/stats
+func IngestMachineStat(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	var machine models.Machine
+	if err := database.DB.
+		Where("id = ? AND company_id = ?", id, auth.CompanyID).
+		First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	var req models.StatIngestionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+
+	ts := time.Now()
+	if req.Ts != nil {
+		ts = *req.Ts
+	}
+
+	stat := models.MachineStat{
+		ID:          uuid.New(),
+		CompanyID:   auth.CompanyID,
+		MachineID:   id,
+		Ts:          ts,
+		MetricKey:   req.MetricKey,
+		MetricValue: req.MetricValue,
+		Meta:        req.Meta,
+	}
+	if err := database.DB.Create(&stat).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(201).JSON(stat)
+}
+
+// GET /api/v1/machines/:id/users
+func GetMachineUsers(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	// Check if user has access to this machine
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		// Superadmin can access any machine's users
+		query = database.DB.Where("id = ?", id)
+	} else {
+		// Regular users can only see users for machines in their company
+		query = database.DB.Where("id = ? AND company_id = ?", id, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	var users []models.CompanyUser
+	err = database.DB.
+		Joins("JOIN machine_assignments ON machine_assignments.user_id = company_users.id").
+		Where("machine_assignments.machine_id = ?", id).
+		Preload("UserRoles.Role").
+		Find(&users).Error
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(users)
+}
+
+// POST /api/v1/machines/:id/users
+func AssignUserToMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	machineID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	var req struct {
+		UserID string `json:"user_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	// Check if machine exists and user has access
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		query = database.DB.Where("id = ?", machineID)
+	} else {
+		query = database.DB.Where("id = ? AND company_id = ?", machineID, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Check if user exists and is in the same company
+	var user models.CompanyUser
+	if auth.Permissions["superadmin"] {
+		if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "user not found"})
+		}
+	} else {
+		if err := database.DB.First(&user, "id = ? AND company_id = ?", userID, auth.CompanyID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "user not found"})
+		}
+	}
+
+	// Create assignment
+	assignment := models.MachineAssignment{
+		MachineID:  machineID,
+		UserID:     userID,
+		AssignedAt: time.Now(),
+	}
+
+	if err := database.DB.Create(&assignment).Error; err != nil {
+		// Check if it's a duplicate
+		if strings.Contains(err.Error(), "duplicate") {
+			return c.Status(400).JSON(fiber.Map{"error": "user already assigned to this machine"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "failed to assign user"})
+	}
+
+	return c.Status(201).JSON(fiber.Map{"message": "user assigned successfully"})
+}
+
+// DELETE /api/v1/machines/:id/users/:user_id
+func UnassignUserFromMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	machineID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	userID, err := uuid.Parse(c.Params("user_id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	// Check if machine exists and user has access
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		query = database.DB.Where("id = ?", machineID)
+	} else {
+		query = database.DB.Where("id = ? AND company_id = ?", machineID, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Delete assignment
+	if err := database.DB.Where("machine_id = ? AND user_id = ?", machineID, userID).Delete(&models.MachineAssignment{}).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to unassign user"})
+	}
+
+	return c.JSON(fiber.Map{"message": "user unassigned successfully"})
+}
