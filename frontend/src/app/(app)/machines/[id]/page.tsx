@@ -51,7 +51,7 @@ export default function MachineDetailPage() {
       } catch (error) {
         console.error("Failed to load machine data:", error);
         toast.error("Failed to load machine data");
-        router.push("/app/machines");
+        router.push("/machines");
       } finally {
         setLoading(false);
       }
