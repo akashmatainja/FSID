@@ -8,32 +8,20 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Machine, MachineStat, CompanyUser } from "@/types";
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   inactive: "bg-slate-500/10 text-slate-500 border-slate-500/20",
   maintenance: "bg-amber-500/10 text-amber-600 border-amber-500/20",
 };
 
-console.log('Machine details page module loaded - BUILD v3.0');
-
 export default function MachineDetailPage() {
-  console.log('MachineDetailPage component rendering - BUILD v3.0');
-  
   const params = useParams();
   const router = useRouter();
   const { permissions } = useAuth();
   
-  console.log('Params:', params);
-  console.log('Permissions:', permissions);
-  
   // Check if user has permission to manage assignments
   const canManageAssignments = permissions["assignments.write"];
   const machineId = params.id as string;
-  
-  console.log('Machine ID:', machineId);
   
   const [machine, setMachine] = useState<Machine | null>(null);
   const [stats, setStats] = useState<MachineStat[]>([]);
@@ -51,33 +39,19 @@ export default function MachineDetailPage() {
     async function loadData() {
       setLoading(true);
       try {
-        console.log('Loading machine details for ID:', machineId);
-        
-        console.log('Fetching machine data...');
-        const machineData = await api.get<Machine>(`/api/v1/machines/${machineId}`);
-        console.log('Machine data loaded:', machineData);
-        
-        console.log('Fetching stats data...');
-        const statsData = await api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats`);
-        console.log('Stats data loaded:', statsData.length, 'stats');
-        
-        console.log('Fetching users data...');
-        const usersData = await api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`);
-        console.log('Users data loaded:', usersData.length, 'users');
+        const [machineData, statsData, usersData] = await Promise.all([
+          api.get<Machine>(`/api/v1/machines/${machineId}`),
+          api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats`),
+          api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`)
+        ]);
         
         setMachine(machineData);
         setStats(statsData);
         setAssignedUsers(usersData);
-        console.log('All data loaded successfully');
       } catch (error) {
-        console.error("=== MACHINE DETAILS ERROR ===");
         console.error("Failed to load machine data:", error);
-        console.error("Error details:", error instanceof Error ? error.message : error);
-        console.error("Error stack:", error instanceof Error ? error.stack : 'No stack');
         toast.error("Failed to load machine data");
-        // Temporarily disabled redirect to see error
-        // router.push("/machines");
-        console.error("=== REDIRECT DISABLED - CHECK ERROR ABOVE ===");
+        router.push("/machines");
       } finally {
         setLoading(false);
       }
