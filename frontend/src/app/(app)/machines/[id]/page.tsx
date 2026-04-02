@@ -20,7 +20,7 @@ export default function MachineDetailPage() {
   const { permissions } = useAuth();
   
   // Check if user has permission to manage assignments
-  const canManageAssignments = permissions["assignments.write"];
+  const canManageAssignments = permissions["machines.write"];
   const machineId = params.id as string;
   
   const [machine, setMachine] = useState<Machine | null>(null);
