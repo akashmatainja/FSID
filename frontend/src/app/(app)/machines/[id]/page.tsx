@@ -15,13 +15,20 @@ const STATUS_CLASSES = {
 };
 
 export default function MachineDetailPage() {
+  console.log('MachineDetailPage component rendering - BUILD v2.0');
+  
   const params = useParams();
   const router = useRouter();
   const { permissions } = useAuth();
   
+  console.log('Params:', params);
+  console.log('Permissions:', permissions);
+  
   // Check if user has permission to manage assignments
   const canManageAssignments = permissions["assignments.write"];
   const machineId = params.id as string;
+  
+  console.log('Machine ID:', machineId);
   
   const [machine, setMachine] = useState<Machine | null>(null);
   const [stats, setStats] = useState<MachineStat[]>([]);
