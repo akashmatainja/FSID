@@ -1,5 +1,5 @@
 -- ========================================
--- MachineIQ Database Schema - Tables Only
+-- Energy Monitoring Database Schema - Tables Only
 -- ========================================
 
 -- 1. Companies table (tenants)

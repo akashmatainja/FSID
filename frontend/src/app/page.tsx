@@ -37,7 +37,7 @@ export default function HomePage() {
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/25 mx-auto mb-6 ring-1 ring-brand-400/20 animate-pulse-slow">
           <Activity className="w-8 h-8 text-white drop-shadow-md" />
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-2">Machine<span className="text-brand-500">IQ</span></h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-2">Energy Monitoring</h1>
         <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest flex items-center justify-center gap-2">
           <span className="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></span>
           Initializing System...

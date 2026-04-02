@@ -54,7 +54,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               className="flex flex-col relative z-10"
             >
               <span className="font-bold text-base tracking-tight text-foreground">
-                Machine<span className="text-brand-500">IQ</span>
+                Energy Monitoring
               </span>
               <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
                 Enterprise

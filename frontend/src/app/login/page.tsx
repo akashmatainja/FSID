@@ -94,7 +94,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/25 mb-5 ring-1 ring-brand-400/20">
             <Activity className="w-7 h-7 text-white drop-shadow-md" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Machine<span className="text-brand-500">IQ</span></h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Energy Monitoring</h1>
           <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-widest">Enterprise Platform</p>
         </div>
 

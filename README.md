@@ -1,6 +1,6 @@
-# MachineIQ – Multi-Tenant Industrial SaaS Platform
+# Energy Monitoring – Multi-Tenant Industrial SaaS Platform
 
-A production-ready, multi-tenant SaaS platform for real-time machine monitoring with strict tenant isolation, role-based access control, and live dashboard updates.
+A production-ready, multi-tenant SaaS platform for real-time energy monitoring with strict tenant isolation, role-based access control, and live dashboard updates.
 
 ## 🏗️ Architecture
 
