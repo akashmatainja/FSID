@@ -39,17 +39,27 @@ export default function MachineDetailPage() {
     async function loadData() {
       setLoading(true);
       try {
-        const [machineData, statsData, usersData] = await Promise.all([
-          api.get<Machine>(`/api/v1/machines/${machineId}`),
-          api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats`),
-          api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`)
-        ]);
+        console.log('Loading machine details for ID:', machineId);
+        
+        console.log('Fetching machine data...');
+        const machineData = await api.get<Machine>(`/api/v1/machines/${machineId}`);
+        console.log('Machine data loaded:', machineData);
+        
+        console.log('Fetching stats data...');
+        const statsData = await api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats`);
+        console.log('Stats data loaded:', statsData.length, 'stats');
+        
+        console.log('Fetching users data...');
+        const usersData = await api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`);
+        console.log('Users data loaded:', usersData.length, 'users');
         
         setMachine(machineData);
         setStats(statsData);
         setAssignedUsers(usersData);
+        console.log('All data loaded successfully');
       } catch (error) {
         console.error("Failed to load machine data:", error);
+        console.error("Error details:", error instanceof Error ? error.message : error);
         toast.error("Failed to load machine data");
         router.push("/machines");
       } finally {
