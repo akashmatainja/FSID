@@ -65,10 +65,14 @@ export default function MachineDetailPage() {
         setAssignedUsers(usersData);
         console.log('All data loaded successfully');
       } catch (error) {
+        console.error("=== MACHINE DETAILS ERROR ===");
         console.error("Failed to load machine data:", error);
         console.error("Error details:", error instanceof Error ? error.message : error);
+        console.error("Error stack:", error instanceof Error ? error.stack : 'No stack');
         toast.error("Failed to load machine data");
-        router.push("/machines");
+        // Temporarily disabled redirect to see error
+        // router.push("/machines");
+        console.error("=== REDIRECT DISABLED - CHECK ERROR ABOVE ===");
       } finally {
         setLoading(false);
       }
