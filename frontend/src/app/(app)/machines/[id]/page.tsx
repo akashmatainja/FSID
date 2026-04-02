@@ -8,14 +8,19 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Machine, MachineStat, CompanyUser } from "@/types";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   inactive: "bg-slate-500/10 text-slate-500 border-slate-500/20",
   maintenance: "bg-amber-500/10 text-amber-600 border-amber-500/20",
 };
 
+console.log('Machine details page module loaded - BUILD v3.0');
+
 export default function MachineDetailPage() {
-  console.log('MachineDetailPage component rendering - BUILD v2.0');
+  console.log('MachineDetailPage component rendering - BUILD v3.0');
   
   const params = useParams();
   const router = useRouter();
