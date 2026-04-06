@@ -8,11 +8,31 @@ export interface Company {
   machine_count?: number;
   role_count?: number;
   stats_count?: number;
+  branch_count?: number;
+}
+
+export interface Branch {
+  id: string;
+  company_id: string;
+  name: string;
+  code: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+  email: string;
+  status: "active" | "inactive" | "maintenance";
+  created_at: string;
+  updated_at: string;
+  company?: Company;
+  machines?: Machine[];
 }
 
 export interface CompanyUser {
   id: string;
   company_id: string;
+  branch_id?: string;
   auth_user_id: string;
   name: string;
   email: string;
@@ -21,6 +41,7 @@ export interface CompanyUser {
   user_roles?: UserRole[];
   machine_assignments?: MachineAssignment[];
   company?: Company;
+  branch?: Branch;
   permissions?: Record<string, boolean>; // For superadmin direct permissions
 }
 
@@ -55,12 +76,42 @@ export interface UserRole {
 export interface Machine {
   id: string;
   company_id: string;
+  branch_id: string;
   name: string;
   code: string;
   location: string;
   status: "active" | "inactive" | "maintenance";
+  
+  // Equipment Information
+  equipment_type: string;      // Motor, Pump, Compressor, etc.
+  manufacturer?: string;       // Equipment manufacturer
+  model_number?: string;       // Model number
+  installation_date?: string;  // Installation date
+  
+  // Energy Monitoring Fields
+  rated_power: number;         // kW
+  voltage_rating: string;      // 230V, 415V, etc.
+  phase?: string;              // Phase information
+  energy_meter_id: string;     // IoT sensor/meter ID
+  operating_hours: number;     // Hours per day
+  
+  // Energy Management
+  baseline_consumption?: string;
+  energy_cost_rate?: string;
+  efficiency_target?: string;
+  
+  // Solar Integration
+  solar_compatible?: string;
+  solar_priority?: string;
+  
+  // Maintenance & Monitoring
+  maintenance_schedule?: string;
+  critical_equipment?: string;
+  sub_unit_monitoring?: string;
+  
   created_at: string;
   company?: Company;
+  branch?: Branch;
 }
 
 export interface UserMachine {
@@ -103,22 +154,30 @@ export interface MachineAssignment {
   machine?: Machine;
 }
 
-export type MetricKey = "temperature" | "rpm" | "vibration" | "energy" | "pressure";
+export type MetricKey = "power" | "energy" | "voltage" | "current" | "power_factor" | "temperature" | "rpm" | "vibration" | "pressure";
 
 export const METRIC_UNITS: Record<MetricKey, string> = {
+  power: "kW",
+  energy: "kWh",
+  voltage: "V",
+  current: "A",
+  power_factor: "",
   temperature: "°C",
   rpm: "RPM",
   vibration: "mm/s",
-  energy: "kWh",
   pressure: "bar",
 };
 
 export const METRIC_COLORS: Record<MetricKey, string> = {
-  temperature: "#ef4444",
-  rpm: "#3b82f6",
-  vibration: "#f59e0b",
+  power: "#3b82f6",
   energy: "#10b981",
-  pressure: "#8b5cf6",
+  voltage: "#f59e0b",
+  current: "#ef4444",
+  power_factor: "#8b5cf6",
+  temperature: "#ec4899",
+  rpm: "#06b6d4",
+  vibration: "#f97316",
+  pressure: "#a855f7",
 };
 
 export type DateRange = "15m" | "1h" | "24h" | "7d" | "custom";

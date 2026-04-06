@@ -56,12 +56,22 @@ func ListUsers(c *fiber.Ctx) error {
 	var users []models.CompanyUser
 	query := database.DB
 
+	// Check for branch_id filter
+	branchID := c.Query("branch_id")
+	if branchID != "" {
+		// Validate UUID
+		if _, err := uuid.Parse(branchID); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid branch ID"})
+		}
+		query = query.Where("branch_id = ?", branchID)
+	}
+
 	// If not superadmin, only show users from same company
 	if !auth.Permissions["superadmin"] {
 		query = query.Where("company_id = ?", auth.CompanyID)
 	}
 
-	if err := query.Preload("MachineAssignments.Machine").Find(&users).Error; err != nil {
+	if err := query.Preload("MachineAssignments.Machine").Preload("Branch").Find(&users).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch users", "details": err.Error()})
 	}
 
@@ -83,7 +93,7 @@ func GetUser(c *fiber.Ctx) error {
 
 	// Find user in database
 	var user models.CompanyUser
-	if err := database.DB.Preload("Company").Preload("UserRoles.Role").First(&user, "id = ?", userID).Error; err != nil {
+	if err := database.DB.Preload("Company").Preload("Branch").Preload("UserRoles.Role").First(&user, "id = ?", userID).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -105,6 +115,7 @@ func CreateUser(c *fiber.Ctx) error {
 		RoleID    string `json:"role_id"`
 		Password  string `json:"password"`   // For initial user creation
 		CompanyID string `json:"company_id"` // For superadmin to specify company
+		BranchID  string `json:"branch_id"`  // Branch assignment within company
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -139,9 +150,22 @@ func CreateUser(c *fiber.Ctx) error {
 		targetCompanyID = auth.CompanyID
 	}
 
+	// Validate and parse branch_id if provided
+	var branchID *uuid.UUID
+	if req.BranchID != "" {
+		// Validate that branch exists and belongs to the target company
+		var branch models.Branch
+		if err := database.DB.First(&branch, "id = ? AND company_id = ?", req.BranchID, targetCompanyID).Error; err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid branch ID or branch does not belong to the specified company"})
+		}
+		parsedBranchID := models.MustParseUUID(req.BranchID)
+		branchID = &parsedBranchID
+	}
+
 	// Create user in company_users table
 	user := models.CompanyUser{
 		CompanyID:  targetCompanyID,
+		BranchID:   branchID,
 		AuthUserID: authUserID,
 		Name:       req.Name,
 		Email:      req.Email,
@@ -169,7 +193,7 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	// Load relationships
-	database.DB.Preload("Company").Preload("UserRoles.Role").First(&user, "id = ?", user.ID)
+	database.DB.Preload("Company").Preload("Branch").Preload("UserRoles.Role").First(&user, "id = ?", user.ID)
 
 	return c.Status(201).JSON(user)
 }
@@ -256,9 +280,10 @@ func UpdateUser(c *fiber.Ctx) error {
 	userID := c.Params("id")
 
 	var req struct {
-		Name   string `json:"name"`
-		Email  string `json:"email"`
-		RoleID string `json:"role_id"`
+		Name     string  `json:"name"`
+		Email    string  `json:"email"`
+		RoleID   string  `json:"role_id"`
+		BranchID *string `json:"branch_id"` // Pointer to distinguish between null, empty, and value
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -279,6 +304,24 @@ func UpdateUser(c *fiber.Ctx) error {
 	// Update user
 	user.Name = req.Name
 	user.Email = req.Email
+
+	// Update branch if provided in request
+	if req.BranchID != nil {
+		if *req.BranchID == "" {
+			// Empty string explicitly clears the branch
+			user.BranchID = nil
+		} else {
+			// Validate that branch exists and belongs to the user's company
+			var branch models.Branch
+			if err := database.DB.First(&branch, "id = ? AND company_id = ?", *req.BranchID, user.CompanyID).Error; err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid branch ID or branch does not belong to the user's company"})
+			}
+			parsedBranchID := models.MustParseUUID(*req.BranchID)
+			user.BranchID = &parsedBranchID
+		}
+	}
+	// If req.BranchID is nil, don't modify the existing branch assignment
+
 	if err := database.DB.Save(&user).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update user"})
 	}
@@ -299,7 +342,7 @@ func UpdateUser(c *fiber.Ctx) error {
 	}
 
 	// Reload with relationships
-	if err := database.DB.Preload("Company").Preload("UserRoles.Role").First(&user, "id = ?", userID).Error; err != nil {
+	if err := database.DB.Preload("Company").Preload("Branch").Preload("UserRoles.Role").First(&user, "id = ?", userID).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to reload user"})
 	}
 

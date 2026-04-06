@@ -31,18 +31,20 @@ type Company struct {
 }
 
 type CompanyUser struct {
-	ID             uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	CompanyID      uuid.UUID `json:"company_id" gorm:"type:uuid;not null"`
-	AuthUserID     uuid.UUID `json:"auth_user_id" gorm:"type:uuid;not null;uniqueIndex"`
-	Name           string    `json:"name"`
-	Email          string    `json:"email"`
-	HashedPassword string    `json:"-" gorm:"column:hashed_password"` // Hidden from JSON
-	Status         string    `json:"status" gorm:"default:active"`
-	Metadata       JSONB     `json:"metadata" gorm:"type:jsonb;default:'{}'"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	CompanyID      uuid.UUID  `json:"company_id" gorm:"type:uuid;not null"`
+	BranchID       *uuid.UUID `json:"branch_id" gorm:"type:uuid"` // Nullable - user assigned to specific branch
+	AuthUserID     uuid.UUID  `json:"auth_user_id" gorm:"type:uuid;not null;uniqueIndex"`
+	Name           string     `json:"name"`
+	Email          string     `json:"email"`
+	HashedPassword string     `json:"-" gorm:"column:hashed_password"` // Hidden from JSON
+	Status         string     `json:"status" gorm:"default:active"`
+	Metadata       JSONB      `json:"metadata" gorm:"type:jsonb;default:'{}'"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 
 	Company            Company             `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	Branch             *Branch             `json:"branch,omitempty" gorm:"foreignKey:BranchID"`
 	UserRoles          []UserRole          `json:"user_roles,omitempty" gorm:"foreignKey:UserID"`
 	MachineAssignments []MachineAssignment `json:"machine_assignments,omitempty" gorm:"foreignKey:UserID"`
 }
@@ -93,15 +95,59 @@ type UserRole struct {
 	Role   Role      `json:"role,omitempty" gorm:"foreignKey:RoleID"`
 }
 
-type Machine struct {
+type Branch struct {
 	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	CompanyID uuid.UUID `json:"company_id" gorm:"type:uuid;not null"`
 	Name      string    `json:"name"`
 	Code      string    `json:"code"`
+	Address   string    `json:"address"`
+	City      string    `json:"city"`
+	State     string    `json:"state"`
+	Pincode   string    `json:"pincode"`
+	Phone     string    `json:"phone"`
+	Email     string    `json:"email"`
+	Status    string    `json:"status" gorm:"default:active"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	Company  Company   `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	Machines []Machine `json:"machines,omitempty" gorm:"foreignKey:BranchID"`
+}
+
+type Machine struct {
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	CompanyID uuid.UUID `json:"company_id" gorm:"type:uuid;not null"`
+	BranchID  uuid.UUID `json:"branch_id" gorm:"type:uuid"` // Made nullable for backward compatibility
+	Name      string    `json:"name"`
+	Code      string    `json:"code"`
 	Location  string    `json:"location"`
 	Status    string    `json:"status" gorm:"default:active"`
+
+	// Energy Monitoring Fields
+	EquipmentType  string  `json:"equipment_type"`  // Motor, Pump, Compressor, etc.
+	RatedPower     float64 `json:"rated_power"`     // kW
+	VoltageRating  string  `json:"voltage_rating"`  // 230V, 415V, etc.
+	EnergyMeterID  string  `json:"energy_meter_id"` // IoT sensor/meter ID
+	OperatingHours float64 `json:"operating_hours"` // Hours per day
+
+	// Additional Machine Information
+	Manufacturer        string    `json:"manufacturer"`
+	ModelNumber         string    `json:"model_number"`
+	InstallationDate    time.Time `json:"installation_date"`
+	MaintenanceSchedule string    `json:"maintenance_schedule"`
+	Phase               string    `json:"phase"`
+	CriticalEquipment   string    `json:"critical_equipment"`
+	SubUnitMonitoring   string    `json:"sub_unit_monitoring"`
+	BaselineConsumption string    `json:"baseline_consumption"`
+	EfficiencyTarget    string    `json:"efficiency_target"`
+	SolarCompatible     string    `json:"solar_compatible"`
+	SolarPriority       string    `json:"solar_priority"`
+
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	Company   Company   `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	Branch    Branch    `json:"branch,omitempty" gorm:"foreignKey:BranchID"`
 }
 
 type MachineAssignment struct {
@@ -112,6 +158,31 @@ type MachineAssignment struct {
 	// Relationships for both perspectives
 	Machine Machine     `json:"machine,omitempty" gorm:"foreignKey:MachineID"`
 	User    CompanyUser `json:"user,omitempty" gorm:"foreignKey:UserID"`
+}
+
+// Branch Request Models
+type CreateBranchRequest struct {
+	Name    string `json:"name" validate:"required"`
+	Code    string `json:"code" validate:"required"`
+	Address string `json:"address"`
+	City    string `json:"city"`
+	State   string `json:"state"`
+	Pincode string `json:"pincode"`
+	Phone   string `json:"phone"`
+	Email   string `json:"email"`
+	Status  string `json:"status"`
+}
+
+type UpdateBranchRequest struct {
+	Name    *string `json:"name"`
+	Code    *string `json:"code"`
+	Address *string `json:"address"`
+	City    *string `json:"city"`
+	State   *string `json:"state"`
+	Pincode *string `json:"pincode"`
+	Phone   *string `json:"phone"`
+	Email   *string `json:"email"`
+	Status  *string `json:"status"`
 }
 
 type MachineStat struct {

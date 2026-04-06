@@ -1,18 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Building2, Loader2, Search, Plus, Users, Cpu, Calendar, Eye, Edit, Trash2, AlertCircle } from "lucide-react";
+import { Building2, Loader2, Search, Plus, Users, Cpu, Calendar, Eye, Edit, Trash2, AlertCircle, MapPin, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Company } from "@/types";
 
-export default function SuperadminCompaniesPage() {
+export default function CompaniesPage() {
+  const router = useRouter();
   const { permissions } = useAuth();
+  const isSuperadmin = permissions["superadmin"];
+  
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "trial">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "trial" | "suspended">("all");
   const [sortBy, setSortBy] = useState<"name" | "created_at">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [showModal, setShowModal] = useState(false);
@@ -32,7 +36,7 @@ export default function SuperadminCompaniesPage() {
   }
 
   useEffect(() => {
-    if (!permissions["superadmin"]) {
+    if (!isSuperadmin) {
       toast.error("Access denied");
       return;
     }
@@ -137,9 +141,8 @@ export default function SuperadminCompaniesPage() {
   }
 
   function handleView(company: Company) {
-    // Navigate to company dashboard or show company overview
-    toast.success(`Opening dashboard for ${company.name}`);
-    // Later: router.push(`/app/companies/${company.id}`);
+    console.log('Navigating to company:', company.id);
+    router.push(`/companies/${company.id}`);
   }
 
   function generateSlug(name: string) {
@@ -161,7 +164,7 @@ export default function SuperadminCompaniesPage() {
     if (fieldErrors.slug && generateSlug(name)) setFieldErrors({...fieldErrors, slug: undefined, name: undefined});
   }
 
-  if (!permissions["superadmin"]) {
+  if (!isSuperadmin) {
     return (
       <div className="flex items-center justify-center h-96 animate-fade-in">
         <div className="text-center max-w-md p-8 glass-card">
@@ -177,21 +180,12 @@ export default function SuperadminCompaniesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-        <span>Dashboard</span>
-        <span>/</span>
-        <span className="text-brand-600 dark:text-brand-400">Superadmin</span>
-        <span>/</span>
-        <span className="text-foreground">Companies</span>
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Registered Companies</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Companies</h1>
           <p className="text-sm font-medium text-muted-foreground mt-1">
-            Global management · {companies.length} {companies.length === 1 ? 'company' : 'companies'}
+            Manage all companies · {companies.length} {companies.length === 1 ? 'company' : 'companies'}
           </p>
         </div>
         <button onClick={openCreateModal} className="btn-primary">
@@ -200,7 +194,7 @@ export default function SuperadminCompaniesPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+      <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -208,16 +202,15 @@ export default function SuperadminCompaniesPage() {
             placeholder="Search companies by name or slug..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 shadow-sm transition-all"
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
           />
         </div>
         <div className="flex gap-3">
-          {/* Status Filter */}
           <div className="relative min-w-[140px]">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 shadow-sm cursor-pointer transition-all"
+              className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
@@ -225,11 +218,10 @@ export default function SuperadminCompaniesPage() {
               <option value="suspended">Suspended</option>
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
             </div>
           </div>
           
-          {/* Sort Filter */}
           <div className="relative min-w-[160px]">
             <select
               value={`${sortBy}-${sortOrder}`}
@@ -238,7 +230,7 @@ export default function SuperadminCompaniesPage() {
                 setSortBy(field as "name" | "created_at");
                 setSortOrder(order as "asc" | "desc");
               }}
-              className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 shadow-sm cursor-pointer transition-all"
+              className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
             >
               <option value="created_at-desc">Newest First</option>
               <option value="created_at-asc">Oldest First</option>
@@ -246,23 +238,22 @@ export default function SuperadminCompaniesPage() {
               <option value="name-desc">Name Z-A</option>
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
             </div>
           </div>
         </div>
       </div>
 
       {/* Companies Grid */}
-      <div className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+      <div className="glass-card overflow-hidden">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="glass-card p-6 h-64 skeleton"></div>
-            ))}
+          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+            <span className="text-sm font-medium animate-pulse">Loading companies...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 glass-card">
-            <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border/50">
+            <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Building2 className="w-8 h-8 text-muted-foreground/50" />
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">No companies found</h3>
@@ -284,7 +275,7 @@ export default function SuperadminCompaniesPage() {
                   {/* Header */}
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
                         <Building2 className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -297,18 +288,25 @@ export default function SuperadminCompaniesPage() {
                   </div>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="grid grid-cols-3 gap-3 mb-6">
                     <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
                       <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-brand-500" />
+                        <MapPin className="w-4 h-4 text-brand-500" />
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Branches</span>
+                      </div>
+                      <p className="text-xl font-extrabold text-foreground">{(company as any).branch_count || 0}</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Users className="w-4 h-4 text-emerald-500" />
                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Users</span>
                       </div>
                       <p className="text-xl font-extrabold text-foreground">{company.user_count || 0}</p>
                     </div>
                     <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
                       <div className="flex items-center gap-2 mb-2">
-                        <Cpu className="w-4 h-4 text-emerald-500" />
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Machines</span>
+                        <Cpu className="w-4 h-4 text-blue-500" />
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Equipment</span>
                       </div>
                       <p className="text-xl font-extrabold text-foreground">{company.machine_count || 0}</p>
                     </div>
@@ -441,14 +439,14 @@ export default function SuperadminCompaniesPage() {
                     <select
                       value={form.status}
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
-                      className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/50 transition-all cursor-pointer"
+                      className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/50 cursor-pointer"
                     >
                       <option value="active">Active (Full Access)</option>
                       <option value="trial">Trial (Limited Time)</option>
                       <option value="suspended">Suspended (No Access)</option>
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
                     </div>
                   </div>
                 </div>
@@ -492,7 +490,7 @@ export default function SuperadminCompaniesPage() {
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2">Delete Company</h3>
               <p className="text-sm font-medium text-muted-foreground mb-6">
-                Are you sure you want to completely remove <strong>{deleteModal.company.name}</strong>? This action will delete all associated users and machines and cannot be undone.
+                Are you sure you want to completely remove <strong>{deleteModal.company.name}</strong>? This action will delete all associated users and equipment and cannot be undone.
               </p>
               
               <div className="flex gap-3">

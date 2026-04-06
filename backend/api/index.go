@@ -11,6 +11,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpadaptor"
 )
 
 var app *fiber.App
@@ -98,5 +100,14 @@ func init() {
 
 // Handler is the serverless function entry point for Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
-	app.Handler()(w, r)
+	// Convert net/http request to fasthttp request
+	ctx := &fasthttp.RequestCtx{}
+	fasthttpadaptor.ConvertRequest(ctx, r, true)
+
+	// Call the Fiber app handler
+	app.Handler()(ctx)
+
+	// Copy fasthttp response to net/http response
+	w.WriteHeader(ctx.Response.StatusCode())
+	w.Write(ctx.Response.Body())
 }

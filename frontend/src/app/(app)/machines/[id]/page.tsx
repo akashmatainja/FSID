@@ -85,7 +85,7 @@ export default function MachineDetailPage() {
     setAssignLoading(true);
     try {
       await api.post(`/api/v1/machines/${machineId}/users`, { user_id: selectedUserId });
-      toast.success("User assigned successfully");
+      toast.success("User assigned to machine successfully");
       setShowAssignModal(false);
       setSelectedUserId("");
       // Reload assigned users
@@ -93,7 +93,7 @@ export default function MachineDetailPage() {
       setAssignedUsers(usersData);
     } catch (error) {
       console.error("Failed to assign user:", error);
-      toast.error("Failed to assign user");
+      toast.error("Failed to assign user to machine");
     } finally {
       setAssignLoading(false);
     }
@@ -152,72 +152,248 @@ export default function MachineDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-4 mb-8"
+      >
         <button
           onClick={() => router.back()}
-          className="p-2 hover:bg-muted rounded-lg transition-colors"
+          className="p-2.5 bg-card hover:bg-muted border border-border/50 rounded-xl transition-all shadow-sm hover:shadow"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/25">
-              <Cpu className="w-6 h-6 text-white" />
+          <h1 className="text-3xl font-extrabold text-foreground flex items-center gap-3 tracking-tight">
+            <div className="w-14 h-14 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/25 border border-brand-400/20">
+              <Cpu className="w-7 h-7 text-white" />
             </div>
             {machine.name}
           </h1>
-          <p className="text-sm text-muted-foreground">Machine Details and Statistics</p>
+          <p className="text-sm font-medium text-muted-foreground mt-1">Comprehensive Machine Analysis and Statistics</p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Machine Info Card */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card p-6"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 30 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border/60 shadow-lg shadow-brand-500/5"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Machine Code</label>
-            <p className="text-lg font-semibold text-foreground font-mono">{machine.code}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Location</label>
-            <p className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              {machine.location}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Status</label>
-            <span className={`text-sm px-3 py-1.5 rounded-full font-medium border ${STATUS_CLASSES[machine.status]}`}>
-              {machine.status}
-            </span>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Created</label>
-            <p className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              {new Date(machine.created_at).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Company Info for Superadmin */}
-        {permissions["superadmin"] && machine.company && (
-          <div className="mt-6 pt-6 border-t border-border">
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Company</label>
-            <div className="flex items-center gap-3 mt-2">
-              <div className="w-8 h-8 rounded-lg bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-brand-500/10 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-purple-500/10 blur-3xl rounded-full pointer-events-none" />
+        
+        <div className="relative p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 border border-border/50 backdrop-blur-sm">
+              <div className="p-3 bg-brand-100 dark:bg-brand-900/30 rounded-xl text-brand-600 dark:text-brand-400">
+                <Cpu className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">{machine.company.name}</p>
-                <p className="text-xs text-muted-foreground font-mono">@{machine.company.slug}</p>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Machine Code</label>
+                <p className="text-lg font-bold text-foreground font-mono">{machine.code}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 border border-border/50 backdrop-blur-sm">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Location</label>
+                <p className="text-lg font-bold text-foreground">{machine.location}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 border border-border/50 backdrop-blur-sm">
+              <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-400">
+                <Activity className="w-5 h-5" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Status</label>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${STATUS_CLASSES[machine.status]}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    machine.status === 'active' ? 'bg-emerald-500' : 
+                    machine.status === 'maintenance' ? 'bg-amber-500' : 'bg-slate-500'
+                  }`} />
+                  {machine.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 p-4 rounded-xl bg-background/50 border border-border/50 backdrop-blur-sm">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600 dark:text-purple-400">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Installation</label>
+                <p className="text-lg font-bold text-foreground">
+                  {machine.installation_date ? new Date(machine.installation_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : "N/A"}
+                </p>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Company Info for Superadmin */}
+          {permissions["superadmin"] && machine.company && (
+            <div className="mt-8 pt-6 border-t border-border/50">
+              <div className="inline-flex items-center gap-4 p-3 pr-6 bg-muted/50 rounded-2xl border border-border/50">
+                <div className="w-10 h-10 rounded-xl bg-brand-500 text-white flex items-center justify-center shadow-sm">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Operating Company</label>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground">{machine.company.name}</p>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-background rounded-md text-muted-foreground border border-border">@{machine.company.slug}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Technical Specifications */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="glass-card overflow-hidden border border-border/60"
+      >
+        <div className="p-6 border-b border-border/50 bg-muted/20">
+          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-brand-500" />
+            Technical Specifications
+          </h3>
+        </div>
+        
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10">
+          {/* Equipment Information */}
+          <div className="space-y-5">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-border/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+              Equipment Identity
+            </h4>
+            
+            <div className="grid gap-4">
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Type</label>
+                <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors capitalize">{machine.equipment_type || "Unspecified"}</p>
+              </div>
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Manufacturer</label>
+                <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.manufacturer || "Unspecified"}</p>
+              </div>
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Model No.</label>
+                <p className="text-sm font-medium text-foreground font-mono bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.model_number || "Unspecified"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Electrical Specifications */}
+          <div className="space-y-5">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-border/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Power Characteristics
+            </h4>
+            
+            <div className="grid gap-4">
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Rated Power</label>
+                <div className="flex items-baseline gap-1 bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">
+                  <span className="text-lg font-bold text-foreground">{machine.rated_power || 0}</span>
+                  <span className="text-sm font-medium text-muted-foreground">kW</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="group">
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Voltage</label>
+                  <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.voltage_rating || "N/A"}</p>
+                </div>
+                <div className="group">
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Phase</label>
+                  <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.phase || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Energy Management */}
+          <div className="space-y-5">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-border/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Performance Metrics
+            </h4>
+            
+            <div className="grid gap-4">
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Meter ID</label>
+                <p className="text-sm font-mono text-foreground bg-emerald-500/5 px-3 py-2 rounded-lg border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">{machine.energy_meter_id || "Unassigned"}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="group">
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Baseline</label>
+                  <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.baseline_consumption || "N/A"}</p>
+                </div>
+                <div className="group">
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Target</label>
+                  <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.efficiency_target || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Maintenance & Monitoring */}
+          <div className="space-y-5">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-border/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Operational Stats
+            </h4>
+            
+            <div className="grid gap-4">
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-blue-500 transition-colors">Uptime</label>
+                <div className="flex items-baseline gap-1 bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">
+                  <span className="text-lg font-bold text-foreground">{machine.operating_hours || 0}</span>
+                  <span className="text-sm font-medium text-muted-foreground">hrs/day</span>
+                </div>
+              </div>
+              <div className="group">
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-blue-500 transition-colors">Maintenance Cycle</label>
+                <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.maintenance_schedule || "Unscheduled"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Branch Information */}
+          {machine.branch && (
+            <div className="space-y-5 lg:col-span-2">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-border/50">
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                Location Assignment
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="group">
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-purple-500 transition-colors">Branch Facility</label>
+                  <div className="flex items-center gap-3 bg-muted/30 px-4 py-3 rounded-xl border border-transparent group-hover:border-border/50 transition-colors">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{machine.branch.name}</p>
+                      <p className="text-xs font-mono text-muted-foreground">{machine.branch.code}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Stats Overview */}

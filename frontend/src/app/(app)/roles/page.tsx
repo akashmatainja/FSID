@@ -136,12 +136,11 @@ export default function RolesPage() {
       </div>
 
       {/* Roles Grid */}
-      <div className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+      <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="glass-card p-6 h-64 skeleton"></div>
-            ))}
+          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+            <span className="text-sm font-medium animate-pulse">Loading roles...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 glass-card">

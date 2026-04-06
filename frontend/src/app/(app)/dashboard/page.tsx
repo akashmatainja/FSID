@@ -15,7 +15,7 @@ import type { DashboardSummary, Machine, MachineStat, MetricKey } from "@/types"
 import { METRIC_COLORS, METRIC_UNITS, type DateRange } from "@/types";
 import { relativeTime, getDateRangeFrom } from "@/lib/utils";
 
-const METRICS: MetricKey[] = ["temperature", "rpm", "vibration", "energy", "pressure"];
+const METRICS: MetricKey[] = ["power", "energy", "voltage", "current", "power_factor"];
 const DATE_RANGES: { label: string; value: DateRange }[] = [
   { label: "15m", value: "15m" }, { label: "1h", value: "1h" },
   { label: "24h", value: "24h" }, { label: "7d", value: "7d" },
@@ -106,7 +106,7 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [historicalStats, setHistoricalStats] = useState<MachineStat[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey>("temperature");
+  const [selectedMetric, setSelectedMetric] = useState<MetricKey>("power");
   const [selectedMachines, setSelectedMachines] = useState<string[]>([]);
   const [selectedMachineForKPI, setSelectedMachineForKPI] = useState<string>("");
   const [dateRange, setDateRange] = useState<DateRange>("1h");
@@ -304,15 +304,15 @@ export default function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { key: "temperature" as MetricKey, icon: Activity,  color: METRIC_COLORS.temperature },
-          { key: "rpm"         as MetricKey, icon: RefreshCw, color: METRIC_COLORS.rpm },
-          { key: "vibration"   as MetricKey, icon: BarChart2, color: METRIC_COLORS.vibration },
-          { key: "energy"      as MetricKey, icon: Zap,       color: METRIC_COLORS.energy },
-          { key: "pressure"    as MetricKey, icon: Cpu,       color: METRIC_COLORS.pressure },
+          { key: "power"        as MetricKey, icon: Zap,        color: METRIC_COLORS.power || "#ef4444" },
+          { key: "energy"       as MetricKey, icon: Activity,   color: METRIC_COLORS.energy || "#10b981" },
+          { key: "voltage"      as MetricKey, icon: RefreshCw,  color: METRIC_COLORS.voltage || "#3b82f6" },
+          { key: "current"      as MetricKey, icon: BarChart2,  color: METRIC_COLORS.current || "#f59e0b" },
+          { key: "power_factor" as MetricKey, icon: Cpu,        color: METRIC_COLORS.power_factor || "#8b5cf6" },
         ].map(({ key, icon, color }, idx) => (
           <div key={key} className="animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
             <KpiCard
-              title={key}
+              title={key.replace('_', ' ')}
               value={kpiData?.[key] ?? null}
               unit={METRIC_UNITS[key]}
               icon={icon}

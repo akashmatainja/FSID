@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"time"
 
 	"github.com/companyuser/backend/database"
@@ -78,6 +79,40 @@ func CreateCompany(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to create company",
 		})
+	}
+
+	// Create default company admin role with branch permissions
+	defaultRole := models.Role{
+		CompanyID:   company.ID,
+		Name:        "Company Admin",
+		Description: "Full access to company resources including branches",
+	}
+
+	if err := database.DB.Create(&defaultRole).Error; err != nil {
+		log.Printf("Warning: Failed to create default role for company %s: %v", company.ID, err)
+	} else {
+		// Add permissions to the default role
+		defaultPermissions := []string{
+			"users.read", "users.write",
+			"roles.read", "roles.write",
+			"machines.read", "machines.write",
+			"branches.read", "branches.write", // Added branch permissions
+			"stats.read", "stats.write",
+			"assignments.read", "assignments.write",
+			"dashboard.read",
+		}
+
+		for _, permKey := range defaultPermissions {
+			var perm models.Permission
+			if err := database.DB.Where("key = ?", permKey).First(&perm).Error; err == nil {
+				rolePerm := models.RolePermission{
+					RoleID:       defaultRole.ID,
+					PermissionID: perm.ID,
+				}
+				database.DB.Create(&rolePerm)
+			}
+		}
+		log.Printf("Created default admin role for company %s with branch permissions", company.ID)
 	}
 
 	return c.Status(201).JSON(company)

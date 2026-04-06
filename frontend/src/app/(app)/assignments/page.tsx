@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitBranch, Loader2, Plus, Trash2, Building2, User, Shield, Cpu, AlertCircle } from "lucide-react";
+import { GitBranch, Loader2, Plus, Trash2, Building2, User, Shield, Cpu, AlertCircle, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -126,10 +126,11 @@ export default function AssignmentsPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="glass-card p-6 h-64 skeleton"></div>
-          ))}
+        <div className="glass-card overflow-hidden">
+          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+            <span className="text-sm font-medium animate-pulse">Loading assignments...</span>
+          </div>
         </div>
       ) : users.length === 0 ? (
         <div className="text-center py-20 glass-card">
@@ -165,7 +166,7 @@ export default function AssignmentsPage() {
               </div>
 
               <div className="p-5 flex-1 flex flex-col gap-6">
-                {/* Company Context */}
+                {/* Company & Branch Context */}
                 {user.company && (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/50">
                     <div className="flex items-center gap-2">
@@ -177,6 +178,17 @@ export default function AssignmentsPage() {
                         <p className="text-sm font-bold text-foreground leading-tight">{user.company.name}</p>
                       </div>
                     </div>
+                    {user.branch && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center shadow-sm">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Branch</p>
+                          <p className="text-sm font-bold text-foreground leading-tight">{user.branch.name}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

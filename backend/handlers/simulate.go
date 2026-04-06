@@ -61,20 +61,20 @@ func Simulate(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "no machines found"})
 	}
 
-	metrics := []string{"temperature", "rpm", "vibration", "energy", "pressure"}
+	metrics := []string{"power", "energy", "voltage", "current", "power_factor"}
 	baseValues := map[string]float64{
-		"temperature": 65.0,
-		"rpm":         1500.0,
-		"vibration":   1.2,
-		"energy":      5.5,
-		"pressure":    5.0,
+		"power":        250.0,  // kW
+		"energy":       1250.0, // kWh
+		"voltage":      415.0,  // V
+		"current":      32.0,   // A
+		"power_factor": 0.85,   // unitless
 	}
 	units := map[string]string{
-		"temperature": "°C",
-		"rpm":         "RPM",
-		"vibration":   "mm/s",
-		"energy":      "kWh",
-		"pressure":    "bar",
+		"power":        "kW",
+		"energy":       "kWh",
+		"voltage":      "V",
+		"current":      "A",
+		"power_factor": "",
 	}
 
 	total := seconds * rate

@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Users as UsersIcon, Search, Loader2, Trash2, Pencil, Shield, Building2, Calendar, Mail, Key, AlertCircle } from "lucide-react";
+import { Plus, Users as UsersIcon, Search, Loader2, Trash2, Pencil, Shield, Building2, Calendar, Mail, Key, AlertCircle, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { CompanyUser, Role, Company } from "@/types";
+import type { CompanyUser, Role, Company, Branch } from "@/types";
 
 export default function UsersPage() {
   const { permissions, companyUser } = useAuth();
@@ -17,12 +17,13 @@ export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role_id: "", password: "", company_id: "" });
+  const [form, setForm] = useState({ name: "", email: "", role_id: "", password: "", company_id: "", branch_id: "" });
   const [roles, setRoles] = useState<Role[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; user: CompanyUser | null }>({ show: false, user: null });
   const [deleting, setDeleting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{name?: string; email?: string; role_id?: string; password?: string; company_id?: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<{name?: string; email?: string; role_id?: string; password?: string; company_id?: string; branch_id?: string}>({});
 
   async function load() {
     setLoading(true);
@@ -35,11 +36,15 @@ export default function UsersPage() {
       setUsers(usersData);
       setRoles(rolesData);
       
-      // Only load companies if superadmin
+      // Load companies and branches
       if (permissions["superadmin"]) {
         const companiesData = await api.get<Company[]>("/api/v1/companies");
         setCompanies(companiesData);
       }
+      
+      // Load branches for current company or all if superadmin
+      const branchesData = await api.get<Branch[]>("/api/v1/branches");
+      setBranches(branchesData);
     } catch { toast.error("Failed to load data"); }
     finally { setLoading(false); }
   }
@@ -53,14 +58,15 @@ export default function UsersPage() {
       email: user.email,
       role_id: user.user_roles?.[0]?.role_id || "",
       password: "", // Don't populate password for edit
-      company_id: user.company_id || ""
+      company_id: user.company_id || "",
+      branch_id: user.branch_id || ""
     });
     setFieldErrors({});
     setShowModal(true);
   }
 
   function validate() {
-    const errors: {name?: string; email?: string; role_id?: string; password?: string; company_id?: string} = {};
+    const errors: {name?: string; email?: string; role_id?: string; password?: string; company_id?: string; branch_id?: string} = {};
     if (!form.name || !form.name.trim()) errors.name = "Name is required";
     
     if (!form.email || !form.email.trim()) {
@@ -155,7 +161,7 @@ export default function UsersPage() {
           <button
             onClick={() => {
               setEditing(null);
-              setForm({ name: "", email: "", role_id: "", password: "", company_id: "" });
+              setForm({ name: "", email: "", role_id: "", password: "", company_id: "", branch_id: "" });
               setFieldErrors({});
               setShowModal(true);
             }}
@@ -180,12 +186,11 @@ export default function UsersPage() {
       </div>
 
       {/* Users Grid */}
-      <div className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+      <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="glass-card p-6 h-48 skeleton"></div>
-            ))}
+          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+            <span className="text-sm font-medium animate-pulse">Loading users...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 glass-card">
@@ -250,6 +255,19 @@ export default function UsersPage() {
                         <div>
                           <p className="text-sm font-bold text-foreground leading-none mb-0.5">{user.company.name}</p>
                           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">@{user.company.slug}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Branch */}
+                    {user.branch && (
+                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                        <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                          <MapPin className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-foreground leading-none mb-0.5">{user.branch.name}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{user.branch.code}</p>
                         </div>
                       </div>
                     )}
@@ -398,6 +416,38 @@ export default function UsersPage() {
                     {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
                   </div>
                 )}
+                
+                <div>
+                  <label className="block text-sm font-bold text-foreground mb-1.5">Branch Assignment</label>
+                  <div className="relative">
+                    <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />
+                    <select 
+                      value={form.branch_id} 
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, branch_id: e.target.value }));
+                        if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
+                      }} 
+                      className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                        fieldErrors.branch_id 
+                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                      }`}
+                    >
+                      <option value="">No branch (company-wide access)</option>
+                      {branches
+                        .filter(branch => !isSuperadmin || !form.company_id || branch.company_id === form.company_id)
+                        .map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name} ({branch.code})
+                          </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                  {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
+                </div>
                 
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Role Assignment <span className="text-red-500">*</span></label>

@@ -57,6 +57,13 @@ func main() {
 	api.Delete("/companies/:id", middleware.RequirePermission("companies.write"), handlers.DeleteCompany)
 	api.Get("/companies/:id/stats", middleware.RequirePermission("superadmin"), handlers.GetCompanyStats)
 
+	// Branches
+	api.Get("/branches", handlers.ListBranches)
+	api.Get("/branches/:id", handlers.GetBranch)
+	api.Post("/branches", middleware.RequirePermission("branches.write"), handlers.CreateBranch)
+	api.Put("/branches/:id", middleware.RequirePermission("branches.write"), handlers.UpdateBranch)
+	api.Delete("/branches/:id", middleware.RequirePermission("branches.write"), handlers.DeleteBranch)
+
 	// Machines
 	api.Get("/machines", handlers.ListMachines)
 	api.Get("/machines/:id", handlers.GetMachine)

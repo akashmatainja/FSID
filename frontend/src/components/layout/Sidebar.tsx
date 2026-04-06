@@ -11,10 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const nav = [
   { href: "/dashboard",   label: "Dashboard",   icon: LayoutDashboard, permission: "dashboard.read" },
+  { href: "/branches",    label: "Branches",    icon: GitBranch, permission: "branches.read", hideForSuperadmin: true },
   { href: "/machines",    label: "Machines",    icon: Cpu, permission: "machines.read" },
   { href: "/users",       label: "Users",       icon: Users, permission: "users.read" },
   { href: "/roles",       label: "Roles",       icon: Shield, permission: "roles.read" },
-  { href: "/assignments", label: "Assignments", icon: GitBranch, permission: "assignments.read" },
+  { href: "/assignments", label: "Device Assignment", icon: GitBranch, permission: "assignments.read" },
   { href: "/settings",    label: "Settings",    icon: Settings, permission: null }, // No permission required for own settings
 ];
 
@@ -80,7 +81,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         </AnimatePresence>
 
-        {nav.map(({ href, label, icon: Icon, permission }) => {
+        {nav.map(({ href, label, icon: Icon, permission, hideForSuperadmin }) => {
+          // Hide for superadmin if specified
+          if (hideForSuperadmin && permissions["superadmin"]) {
+            return null;
+          }
+          // Check permissions for non-superadmin
           if (permission && !permissions[permission] && !permissions["superadmin"]) {
             return null;
           }
@@ -145,16 +151,16 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )}
             </AnimatePresence>
             
-            <Link href="/superadmin/companies">
+            <Link href="/companies">
               <div
                 className={cn(
                   "sidebar-item relative group",
-                  pathname.startsWith("/superadmin") && "active",
+                  pathname.startsWith("/companies") && "active",
                   collapsed && "justify-center px-0 h-11 w-11 mx-auto rounded-xl mt-6"
                 )}
                 title={collapsed ? "Companies" : undefined}
               >
-                {pathname.startsWith("/superadmin") && (
+                {pathname.startsWith("/companies") && (
                   <motion.div 
                     layoutId="activeIndicator"
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1/2 bg-brand-500 rounded-r-full"
@@ -163,7 +169,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 
                 <Building2 className={cn(
                   "w-5 h-5 shrink-0 transition-colors duration-200 relative z-10",
-                  pathname.startsWith("/superadmin") ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground group-hover:text-foreground"
+                  pathname.startsWith("/companies") ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground group-hover:text-foreground"
                 )} />
                 <AnimatePresence>
                   {!collapsed && (

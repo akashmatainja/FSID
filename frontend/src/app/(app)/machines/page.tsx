@@ -6,7 +6,7 @@ import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Build
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Machine, Company } from "@/types";
+import type { Machine, Company, Branch } from "@/types";
 
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
@@ -21,27 +21,54 @@ export default function MachinesPage() {
   const isSuperadmin = permissions["superadmin"];
   const [machines, setMachines] = useState<Machine[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Machine | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", location: "", status: "active", company_id: "" });
+  const [form, setForm] = useState({ 
+    name: "", 
+    code: "", 
+    location: "", 
+    status: "active", 
+    company_id: "",
+    branch_id: "",
+    equipment_type: "",
+    rated_power: "",
+    voltage_rating: "",
+    energy_meter_id: "",
+    operating_hours: "",
+    manufacturer: "",
+    model_number: "",
+    installation_date: "",
+    maintenance_schedule: "",
+    phase: "",
+    critical_equipment: "",
+    sub_unit_monitoring: "",
+    baseline_consumption: "",
+    energy_cost_rate: "",
+    efficiency_target: "",
+    solar_compatible: "",
+    solar_priority: ""
+  });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<() => Promise<boolean>>();
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{name?: string; code?: string; location?: string; company_id?: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<{name?: string; code?: string; location?: string; company_id?: string; branch_id?: string; equipment_type?: string; rated_power?: string; voltage_rating?: string; operating_hours?: string; energy_meter_id?: string; manufacturer?: string; model_number?: string; installation_date?: string; maintenance_schedule?: string; phase?: string; critical_equipment?: string; sub_unit_monitoring?: string; baseline_consumption?: string; energy_cost_rate?: string; efficiency_target?: string; solar_compatible?: string; solar_priority?: string}>({});
 
   async function load() {
     setLoading(true);
     try {
-      const [machinesData, companiesData] = await Promise.all([
+      const [machinesData, branchesData, companiesData] = await Promise.all([
         api.get<Machine[]>("/api/v1/machines"),
+        api.get<Branch[]>("/api/v1/branches"),
         ...(isSuperadmin ? [api.get<Company[]>("/api/v1/companies")] : [])
       ]);
       
       setMachines(machinesData);
+      setBranches(branchesData);
       if (isSuperadmin && companiesData) {
         setCompanies(companiesData as Company[]);
       }
@@ -53,24 +80,81 @@ export default function MachinesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", code: "", location: "", status: "active", company_id: "" });
+    setForm({ 
+      name: "", 
+      code: "", 
+      location: "", 
+      status: "active", 
+      company_id: "",
+      branch_id: "",
+      equipment_type: "",
+      rated_power: "",
+      voltage_rating: "",
+      energy_meter_id: "",
+      operating_hours: "",
+      manufacturer: "",
+      model_number: "",
+      installation_date: "",
+      maintenance_schedule: "",
+      phase: "",
+      critical_equipment: "",
+      sub_unit_monitoring: "",
+      baseline_consumption: "",
+      energy_cost_rate: "",
+      efficiency_target: "",
+      solar_compatible: "",
+      solar_priority: ""
+    });
     setFieldErrors({});
     setShowModal(true);
   }
 
   function openEdit(m: Machine) {
     setEditing(m);
-    setForm({ name: m.name, code: m.code, location: m.location, status: m.status, company_id: m.company_id });
+    setForm({ 
+      name: m.name, 
+      code: m.code, 
+      location: m.location, 
+      status: m.status, 
+      company_id: m.company_id,
+      branch_id: m.branch_id || "",
+      equipment_type: m.equipment_type || "",
+      rated_power: m.rated_power?.toString() || "",
+      voltage_rating: m.voltage_rating || "",
+      energy_meter_id: m.energy_meter_id || "",
+      operating_hours: m.operating_hours?.toString() || "",
+      manufacturer: "",
+      model_number: "",
+      installation_date: "",
+      maintenance_schedule: "",
+      phase: "",
+      critical_equipment: "",
+      sub_unit_monitoring: "",
+      baseline_consumption: "",
+      energy_cost_rate: "",
+      efficiency_target: "",
+      solar_compatible: "",
+      solar_priority: ""
+    });
     setFieldErrors({});
     setShowModal(true);
   }
 
   function validate() {
-    const errors: {name?: string; code?: string; location?: string; company_id?: string} = {};
+    const errors: {name?: string; code?: string; location?: string; company_id?: string; branch_id?: string; equipment_type?: string; rated_power?: string; voltage_rating?: string; operating_hours?: string; energy_meter_id?: string; manufacturer?: string; model_number?: string; installation_date?: string; maintenance_schedule?: string; phase?: string; critical_equipment?: string; sub_unit_monitoring?: string; baseline_consumption?: string; energy_cost_rate?: string; efficiency_target?: string; solar_compatible?: string; solar_priority?: string} = {};
     if (!form.name || !form.name.trim()) errors.name = "Machine name is required";
     if (!form.code || !form.code.trim()) errors.code = "Machine code is required";
     if (!form.location || !form.location.trim()) errors.location = "Location is required";
+    // Only require branch_id for new machine (not when editing existing machine without branch)
+if (!form.branch_id && !editing) errors.branch_id = "Branch selection is required";
     if (isSuperadmin && !form.company_id) errors.company_id = "Company selection is required";
+    
+    // Energy monitoring validations
+    if (!form.equipment_type) errors.equipment_type = "Machine type is required";
+    if (!form.rated_power || parseFloat(form.rated_power) <= 0) errors.rated_power = "Rated power must be greater than 0";
+    if (!form.operating_hours || parseFloat(form.operating_hours) <= 0 || parseFloat(form.operating_hours) > 24) {
+      errors.operating_hours = "Operating hours must be between 0 and 24";
+    }
     
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -83,9 +167,16 @@ export default function MachinesPage() {
     setSaving(true);
     try {
       // Set company_id for regular users
-      const payload = isSuperadmin 
+      const basePayload = isSuperadmin 
         ? form 
         : { ...form, company_id: companyUser?.company_id || "" };
+
+      // Convert numeric string fields to numbers for backend
+      const payload = {
+        ...basePayload,
+        rated_power: basePayload.rated_power ? parseFloat(basePayload.rated_power) : 0,
+        operating_hours: basePayload.operating_hours ? parseFloat(basePayload.operating_hours) : 0,
+      };
 
       if (editing) {
         await api.put(`/api/v1/machines/${editing.id}`, payload);
@@ -143,9 +234,9 @@ export default function MachinesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Machines</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Machine Monitoring</h1>
           <p className="text-sm font-medium text-muted-foreground mt-1">
-            Manage your industrial machines and equipment
+            Monitor and manage energy consumption across your machines
           </p>
         </div>
         {canWrite && (
@@ -175,7 +266,7 @@ export default function MachinesPage() {
               <Cpu className="w-8 h-8 text-muted-foreground/50" />
             </div>
             <h3 className="text-base font-bold text-foreground mb-1">No machines found</h3>
-            <p className="text-sm text-muted-foreground">Try adjusting your search query or add a new machine.</p>
+            <p className="text-sm text-muted-foreground">Try adjusting your search query or add new machines.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -264,7 +355,7 @@ export default function MachinesPage() {
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative glass-card p-0 w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative glass-card p-0 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-border/50 bg-muted/20 flex items-center gap-3 shrink-0">
                 <div className="w-10 h-10 bg-brand-500/10 rounded-xl flex items-center justify-center border border-brand-500/20">
                   <Cpu className="w-5 h-5 text-brand-600 dark:text-brand-400" />
@@ -326,6 +417,423 @@ export default function MachinesPage() {
                     }`} 
                   />
                   {fieldErrors.location && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.location}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-foreground mb-1.5">Branch {editing ? "" : <span className="text-red-500">*</span>}</label>
+                  <div className="relative">
+                    <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />
+                    <select
+                      value={form.branch_id}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, branch_id: e.target.value }));
+                        if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
+                      }}
+                      className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                        fieldErrors.branch_id 
+                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                      }`}
+                    >
+                      <option value="" disabled>Select a branch</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name} ({branch.city}, {branch.state})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                  {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
+                </div>
+                
+                {/* Energy Monitoring Fields */}
+                <div className="border-t border-border/50 pt-4">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-brand-500"></span>
+                    Energy Monitoring Details
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Machine Type <span className="text-red-500">*</span></label>
+                      <select
+                        value={form.equipment_type}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, equipment_type: e.target.value }));
+                          if (fieldErrors.equipment_type) setFieldErrors({...fieldErrors, equipment_type: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.equipment_type 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="" disabled>Select machine type</option>
+                        <option value="motor">Motor</option>
+                        <option value="pump">Pump</option>
+                        <option value="compressor">Compressor</option>
+                        <option value="hvac">HVAC</option>
+                        <option value="lighting">Lighting</option>
+                        <option value="production">Production Machine</option>
+                        <option value="conveyor">Conveyor</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {fieldErrors.equipment_type && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.equipment_type}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Rated Power (kW) <span className="text-red-500">*</span></label>
+                      <input 
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={form.rated_power} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, rated_power: e.target.value }));
+                          if (fieldErrors.rated_power) setFieldErrors({...fieldErrors, rated_power: undefined});
+                        }} 
+                        placeholder="7.5"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.rated_power 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                      {fieldErrors.rated_power && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.rated_power}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Voltage Rating</label>
+                      <select
+                        value={form.voltage_rating}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, voltage_rating: e.target.value }));
+                          if (fieldErrors.voltage_rating) setFieldErrors({...fieldErrors, voltage_rating: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.voltage_rating 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="" disabled>Select voltage rating</option>
+                        <option value="230V">230V (Single Phase)</option>
+                        <option value="415V">415V (Three Phase)</option>
+                        <option value="110V">110V</option>
+                        <option value="480V">480V</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                      {fieldErrors.voltage_rating && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.voltage_rating}</p>}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Energy Meter ID</label>
+                      <input 
+                        value={form.energy_meter_id} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, energy_meter_id: e.target.value }));
+                          if (fieldErrors.energy_meter_id) setFieldErrors({...fieldErrors, energy_meter_id: undefined});
+                        }} 
+                        placeholder="EM-001"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium font-mono focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.energy_meter_id 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">IoT sensor or meter identifier for energy monitoring</p>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Operating Hours / Day</label>
+                      <input 
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="24"
+                        value={form.operating_hours} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, operating_hours: e.target.value }));
+                          if (fieldErrors.operating_hours) setFieldErrors({...fieldErrors, operating_hours: undefined});
+                        }} 
+                        placeholder="8"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.operating_hours 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Expected daily operating hours for consumption estimation</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Additional Energy Monitoring Fields */}
+                <div className="border-t border-border/50 pt-4">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    Equipment Details & Configuration
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Manufacturer</label>
+                      <input 
+                        value={form.manufacturer} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, manufacturer: e.target.value }));
+                          if (fieldErrors.manufacturer) setFieldErrors({...fieldErrors, manufacturer: undefined});
+                        }} 
+                        placeholder="Siemens"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.manufacturer 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Model Number</label>
+                      <input 
+                        value={form.model_number} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, model_number: e.target.value }));
+                          if (fieldErrors.model_number) setFieldErrors({...fieldErrors, model_number: undefined});
+                        }} 
+                        placeholder="S7-1200"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.model_number 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Installation Date</label>
+                      <input 
+                        type="date"
+                        value={form.installation_date} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, installation_date: e.target.value }));
+                          if (fieldErrors.installation_date) setFieldErrors({...fieldErrors, installation_date: undefined});
+                        }} 
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.installation_date 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Maintenance Schedule</label>
+                      <select
+                        value={form.maintenance_schedule}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, maintenance_schedule: e.target.value }));
+                          if (fieldErrors.maintenance_schedule) setFieldErrors({...fieldErrors, maintenance_schedule: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.maintenance_schedule 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">Select schedule</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="as-needed">As Needed</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Energy Configuration */}
+                <div className="border-t border-border/50 pt-4">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    Energy Configuration
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Phase</label>
+                      <select
+                        value={form.phase}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, phase: e.target.value }));
+                          if (fieldErrors.phase) setFieldErrors({...fieldErrors, phase: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.phase 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">Select phase</option>
+                        <option value="single">Single Phase</option>
+                        <option value="three">Three Phase</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Critical Equipment</label>
+                      <select
+                        value={form.critical_equipment}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, critical_equipment: e.target.value }));
+                          if (fieldErrors.critical_equipment) setFieldErrors({...fieldErrors, critical_equipment: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.critical_equipment 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">Select priority</option>
+                        <option value="yes">Yes - High Priority</option>
+                        <option value="no">No - Normal Priority</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Sub-Unit Level Monitoring</label>
+                      <select
+                        value={form.sub_unit_monitoring}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, sub_unit_monitoring: e.target.value }));
+                          if (fieldErrors.sub_unit_monitoring) setFieldErrors({...fieldErrors, sub_unit_monitoring: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.sub_unit_monitoring 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">Select option</option>
+                        <option value="yes">Yes - Monitor sub-components</option>
+                        <option value="no">No - Equipment level only</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Baseline Consumption (kWh/day)</label>
+                      <input 
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={form.baseline_consumption} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, baseline_consumption: e.target.value }));
+                          if (fieldErrors.baseline_consumption) setFieldErrors({...fieldErrors, baseline_consumption: undefined});
+                        }} 
+                        placeholder="60"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.baseline_consumption 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Energy Cost Rate (₹/kWh)</label>
+                      <input 
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.energy_cost_rate} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, energy_cost_rate: e.target.value }));
+                          if (fieldErrors.energy_cost_rate) setFieldErrors({...fieldErrors, energy_cost_rate: undefined});
+                        }} 
+                        placeholder="8.50"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.energy_cost_rate 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Efficiency Target (%)</label>
+                      <input 
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="100"
+                        value={form.efficiency_target} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, efficiency_target: e.target.value }));
+                          if (fieldErrors.efficiency_target) setFieldErrors({...fieldErrors, efficiency_target: undefined});
+                        }} 
+                        placeholder="85"
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.efficiency_target 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`} 
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Solar Integration */}
+                <div className="border-t border-border/50 pt-4">
+                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                    Solar Integration
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Solar Compatible</label>
+                      <select
+                        value={form.solar_compatible}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, solar_compatible: e.target.value }));
+                          if (fieldErrors.solar_compatible) setFieldErrors({...fieldErrors, solar_compatible: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.solar_compatible 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">Select option</option>
+                        <option value="yes">Yes - Can run on solar</option>
+                        <option value="no">No - Grid only</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Solar Priority</label>
+                      <select
+                        value={form.solar_priority}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, solar_priority: e.target.value }));
+                          if (fieldErrors.solar_priority) setFieldErrors({...fieldErrors, solar_priority: undefined});
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.solar_priority 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">Select priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="low">Low Priority</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Company Selection - Only for Superadmin */}

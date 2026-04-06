@@ -12,6 +12,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// parseDate parses a date string in YYYY-MM-DD format
+func parseDate(dateStr string) time.Time {
+	if dateStr == "" {
+		return time.Time{}
+	}
+	if date, err := time.Parse("2006-01-02", dateStr); err == nil {
+		return date
+	}
+	return time.Time{}
+}
+
 // GET /api/v1/machines
 func ListMachines(c *fiber.Ctx) error {
 	auth := middleware.GetAuth(c)
@@ -72,17 +83,21 @@ func GetMachine(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
 	}
 
-	// Preload company data for superadmin
-	if auth.Permissions["superadmin"] {
-		if database.DB.Preload("Company").First(&machine, "id = ?", id).Error == nil {
-			// Company data loaded successfully
-		}
-
-		// Manual company loading fallback
+	// Preload company and branch data
+	if database.DB.Preload("Company").Preload("Branch").First(&machine, "id = ?", id).Error == nil {
+		// Company and branch data loaded successfully
+	} else {
+		// Manual loading fallback
 		if machine.Company.ID == uuid.Nil {
 			var company models.Company
 			if database.DB.First(&company, "id = ?", machine.CompanyID).Error == nil {
 				machine.Company = company
+			}
+		}
+		if machine.Branch.ID == uuid.Nil {
+			var branch models.Branch
+			if database.DB.First(&branch, "id = ?", machine.BranchID).Error == nil {
+				machine.Branch = branch
 			}
 		}
 	}
@@ -95,10 +110,29 @@ func CreateMachine(c *fiber.Ctx) error {
 	auth := middleware.GetAuth(c)
 
 	var req struct {
-		Name     string `json:"name"`
-		Code     string `json:"code"`
-		Location string `json:"location"`
-		Status   string `json:"status"`
+		Name                string  `json:"name"`
+		Code                string  `json:"code"`
+		Location            string  `json:"location"`
+		Status              string  `json:"status"`
+		CompanyID           string  `json:"company_id"`
+		BranchID            string  `json:"branch_id"`
+		EquipmentType       string  `json:"equipment_type"`
+		RatedPower          float64 `json:"rated_power"`
+		VoltageRating       string  `json:"voltage_rating"`
+		EnergyMeterID       string  `json:"energy_meter_id"`
+		OperatingHours      float64 `json:"operating_hours"`
+		Manufacturer        string  `json:"manufacturer"`
+		ModelNumber         string  `json:"model_number"`
+		InstallationDate    string  `json:"installation_date"`
+		MaintenanceSchedule string  `json:"maintenance_schedule"`
+		Phase               string  `json:"phase"`
+		CriticalEquipment   string  `json:"critical_equipment"`
+		SubUnitMonitoring   string  `json:"sub_unit_monitoring"`
+		BaselineConsumption string  `json:"baseline_consumption"`
+		EnergyCostRate      string  `json:"energy_cost_rate"`
+		EfficiencyTarget    string  `json:"efficiency_target"`
+		SolarCompatible     string  `json:"solar_compatible"`
+		SolarPriority       string  `json:"solar_priority"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
@@ -107,14 +141,59 @@ func CreateMachine(c *fiber.Ctx) error {
 		req.Status = "active"
 	}
 
+	// Determine company ID
+	companyID := auth.CompanyID
+	if auth.Permissions["superadmin"] && req.CompanyID != "" {
+		// Validate company exists
+		var company models.Company
+		if database.DB.First(&company, "id = ?", req.CompanyID).Error != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "company not found"})
+		}
+		parsedCompanyID, _ := uuid.Parse(req.CompanyID)
+		companyID = parsedCompanyID
+	}
+
+	// Parse and validate branch_id if provided
+	var branchID uuid.UUID
+	if req.BranchID != "" {
+		parsedBranchID, err := uuid.Parse(req.BranchID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid branch id"})
+		}
+		// Validate branch exists and belongs to the company
+		var branch models.Branch
+		if database.DB.First(&branch, "id = ? AND company_id = ?", parsedBranchID, companyID).Error != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "branch not found or does not belong to the specified company"})
+		}
+		branchID = parsedBranchID
+	}
+
 	m := models.Machine{
-		ID:        uuid.New(),
-		CompanyID: auth.CompanyID,
-		Name:      req.Name,
-		Code:      req.Code,
-		Location:  req.Location,
-		Status:    req.Status,
-		CreatedAt: time.Now(),
+		ID:                  uuid.New(),
+		CompanyID:           companyID,
+		BranchID:            branchID,
+		Name:                req.Name,
+		Code:                req.Code,
+		Location:            req.Location,
+		Status:              req.Status,
+		EquipmentType:       req.EquipmentType,
+		RatedPower:          req.RatedPower,
+		VoltageRating:       req.VoltageRating,
+		EnergyMeterID:       req.EnergyMeterID,
+		OperatingHours:      req.OperatingHours,
+		Manufacturer:        req.Manufacturer,
+		ModelNumber:         req.ModelNumber,
+		InstallationDate:    parseDate(req.InstallationDate),
+		MaintenanceSchedule: req.MaintenanceSchedule,
+		Phase:               req.Phase,
+		CriticalEquipment:   req.CriticalEquipment,
+		SubUnitMonitoring:   req.SubUnitMonitoring,
+		BaselineConsumption: req.BaselineConsumption,
+		EfficiencyTarget:    req.EfficiencyTarget,
+		SolarCompatible:     req.SolarCompatible,
+		SolarPriority:       req.SolarPriority,
+		CreatedAt:           time.Now(),
+		UpdatedAt:           time.Now(),
 	}
 	if err := database.DB.Create(&m).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -146,11 +225,29 @@ func UpdateMachine(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		Name      string `json:"name"`
-		Code      string `json:"code"`
-		Location  string `json:"location"`
-		Status    string `json:"status"`
-		CompanyID string `json:"company_id"`
+		Name                string  `json:"name"`
+		Code                string  `json:"code"`
+		Location            string  `json:"location"`
+		Status              string  `json:"status"`
+		CompanyID           string  `json:"company_id"`
+		BranchID            string  `json:"branch_id"`
+		EquipmentType       string  `json:"equipment_type"`
+		RatedPower          float64 `json:"rated_power"`
+		VoltageRating       string  `json:"voltage_rating"`
+		EnergyMeterID       string  `json:"energy_meter_id"`
+		OperatingHours      float64 `json:"operating_hours"`
+		Manufacturer        string  `json:"manufacturer"`
+		ModelNumber         string  `json:"model_number"`
+		InstallationDate    string  `json:"installation_date"`
+		MaintenanceSchedule string  `json:"maintenance_schedule"`
+		Phase               string  `json:"phase"`
+		CriticalEquipment   string  `json:"critical_equipment"`
+		SubUnitMonitoring   string  `json:"sub_unit_monitoring"`
+		BaselineConsumption string  `json:"baseline_consumption"`
+		EnergyCostRate      string  `json:"energy_cost_rate"`
+		EfficiencyTarget    string  `json:"efficiency_target"`
+		SolarCompatible     string  `json:"solar_compatible"`
+		SolarPriority       string  `json:"solar_priority"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
@@ -158,10 +255,41 @@ func UpdateMachine(c *fiber.Ctx) error {
 
 	// Build updates map
 	updates := map[string]interface{}{
-		"name":     req.Name,
-		"code":     req.Code,
-		"location": req.Location,
-		"status":   req.Status,
+		"name":                 req.Name,
+		"code":                 req.Code,
+		"location":             req.Location,
+		"status":               req.Status,
+		"equipment_type":       req.EquipmentType,
+		"rated_power":          req.RatedPower,
+		"voltage_rating":       req.VoltageRating,
+		"energy_meter_id":      req.EnergyMeterID,
+		"operating_hours":      req.OperatingHours,
+		"manufacturer":         req.Manufacturer,
+		"model_number":         req.ModelNumber,
+		"installation_date":    parseDate(req.InstallationDate),
+		"maintenance_schedule": req.MaintenanceSchedule,
+		"phase":                req.Phase,
+		"critical_equipment":   req.CriticalEquipment,
+		"sub_unit_monitoring":  req.SubUnitMonitoring,
+		"baseline_consumption": req.BaselineConsumption,
+		"efficiency_target":    req.EfficiencyTarget,
+		"solar_compatible":     req.SolarCompatible,
+		"solar_priority":       req.SolarPriority,
+		"updated_at":           time.Now(),
+	}
+
+	// Handle branch_id update
+	if req.BranchID != "" {
+		parsedBranchID, err := uuid.Parse(req.BranchID)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid branch id"})
+		}
+		// Validate branch exists and belongs to the machine's company
+		var branch models.Branch
+		if database.DB.First(&branch, "id = ? AND company_id = ?", parsedBranchID, machine.CompanyID).Error != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "branch not found or does not belong to the machine's company"})
+		}
+		updates["branch_id"] = parsedBranchID
 	}
 
 	// Only superadmin can change company
