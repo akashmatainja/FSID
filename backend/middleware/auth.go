@@ -91,6 +91,10 @@ func JWTAuth(jwtSecret string) fiber.Handler {
 				"stats.write":         true,
 				"companies.read":      true,
 				"companies.write":     true,
+				"branches.read":       true,
+				"branches.write":      true,
+				"subdivisions.read":   true,
+				"subdivisions.write":  true,
 				"superadmin":          true,
 			}
 		} else {

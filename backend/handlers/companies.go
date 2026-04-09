@@ -14,14 +14,37 @@ import (
 func ListCompanies(c *fiber.Ctx) error {
 	var companies []models.Company
 
-	result := database.DB.Find(&companies)
+	result := database.DB.Preload("Branches").Find(&companies)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to fetch companies",
 		})
 	}
 
-	return c.JSON(companies)
+	// Create response with all counts
+	type CompanyWithCounts struct {
+		models.Company
+		BranchCount  int64 `json:"branch_count"`
+		UserCount    int64 `json:"user_count"`
+		MachineCount int64 `json:"machine_count"`
+		RoleCount    int64 `json:"role_count"`
+	}
+
+	var response []CompanyWithCounts
+	for _, company := range companies {
+		var counts CompanyWithCounts
+		counts.Company = company
+		counts.BranchCount = int64(len(company.Branches))
+
+		// Count users, machines, and roles for this company
+		database.DB.Model(&models.CompanyUser{}).Where("company_id = ?", company.ID).Count(&counts.UserCount)
+		database.DB.Model(&models.Machine{}).Where("company_id = ?", company.ID).Count(&counts.MachineCount)
+		database.DB.Model(&models.Role{}).Where("company_id = ?", company.ID).Count(&counts.RoleCount)
+
+		response = append(response, counts)
+	}
+
+	return c.JSON(response)
 }
 
 // GetCompany - Get a specific company by ID
@@ -29,14 +52,32 @@ func GetCompany(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	var company models.Company
-	result := database.DB.First(&company, "id = ?", id)
+	result := database.DB.Preload("Branches").First(&company, "id = ?", id)
 	if result.Error != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"error": "Company not found",
 		})
 	}
 
-	return c.JSON(company)
+	// Create response with counts
+	type CompanyWithCounts struct {
+		models.Company
+		BranchCount  int64 `json:"branch_count"`
+		UserCount    int64 `json:"user_count"`
+		MachineCount int64 `json:"machine_count"`
+		RoleCount    int64 `json:"role_count"`
+	}
+
+	var response CompanyWithCounts
+	response.Company = company
+	response.BranchCount = int64(len(company.Branches))
+
+	// Count users, machines, and roles for this company
+	database.DB.Model(&models.CompanyUser{}).Where("company_id = ?", company.ID).Count(&response.UserCount)
+	database.DB.Model(&models.Machine{}).Where("company_id = ?", company.ID).Count(&response.MachineCount)
+	database.DB.Model(&models.Role{}).Where("company_id = ?", company.ID).Count(&response.RoleCount)
+
+	return c.JSON(response)
 }
 
 // CreateCompany - Superadmin can create new companies
@@ -97,6 +138,7 @@ func CreateCompany(c *fiber.Ctx) error {
 			"roles.read", "roles.write",
 			"machines.read", "machines.write",
 			"branches.read", "branches.write", // Added branch permissions
+			"subdivisions.read", "subdivisions.write", // Added subdivision permissions
 			"stats.read", "stats.write",
 			"assignments.read", "assignments.write",
 			"dashboard.read",
@@ -112,7 +154,7 @@ func CreateCompany(c *fiber.Ctx) error {
 				database.DB.Create(&rolePerm)
 			}
 		}
-		log.Printf("Created default admin role for company %s with branch permissions", company.ID)
+		log.Printf("Created default admin role for company %s with branch and subdivision permissions", company.ID)
 	}
 
 	return c.Status(201).JSON(company)
@@ -198,9 +240,9 @@ func DeleteCompany(c *fiber.Ctx) error {
 func GetCompanyStats(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	// Check if company exists
+	// Check if company exists and preload branches
 	var company models.Company
-	result := database.DB.First(&company, "id = ?", id)
+	result := database.DB.Preload("Branches").First(&company, "id = ?", id)
 	if result.Error != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"error": "Company not found",
@@ -209,12 +251,14 @@ func GetCompanyStats(c *fiber.Ctx) error {
 
 	// Get company statistics
 	var stats struct {
+		BranchCount  int64 `json:"branch_count"`
 		UserCount    int64 `json:"user_count"`
 		MachineCount int64 `json:"machine_count"`
 		RoleCount    int64 `json:"role_count"`
 		StatsCount   int64 `json:"stats_count"`
 	}
 
+	stats.BranchCount = int64(len(company.Branches))
 	database.DB.Model(&models.CompanyUser{}).Where("company_id = ?", id).Count(&stats.UserCount)
 	database.DB.Model(&models.Machine{}).Where("company_id = ?", id).Count(&stats.MachineCount)
 	database.DB.Model(&models.Role{}).Where("company_id = ?", id).Count(&stats.RoleCount)

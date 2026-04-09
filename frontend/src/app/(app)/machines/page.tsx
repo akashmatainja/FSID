@@ -2,11 +2,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Building2, AlertCircle } from "lucide-react";
+import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Building2, AlertCircle, Package } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Machine, Company, Branch } from "@/types";
+import type { Machine, Company, Branch, Subdivision, Module } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
@@ -22,6 +24,7 @@ export default function MachinesPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -34,6 +37,7 @@ export default function MachinesPage() {
     status: "active", 
     company_id: "",
     branch_id: "",
+    module_ids: [] as string[],
     equipment_type: "",
     rated_power: "",
     voltage_rating: "",
@@ -58,24 +62,30 @@ export default function MachinesPage() {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{name?: string; code?: string; location?: string; company_id?: string; branch_id?: string; equipment_type?: string; rated_power?: string; voltage_rating?: string; operating_hours?: string; energy_meter_id?: string; manufacturer?: string; model_number?: string; installation_date?: string; maintenance_schedule?: string; phase?: string; critical_equipment?: string; sub_unit_monitoring?: string; baseline_consumption?: string; energy_cost_rate?: string; efficiency_target?: string; solar_compatible?: string; solar_priority?: string}>({});
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   async function load() {
     setLoading(true);
     try {
-      const [machinesData, branchesData, companiesData] = await Promise.all([
-        api.get<Machine[]>("/api/v1/machines"),
-        api.get<Branch[]>("/api/v1/branches"),
-        ...(isSuperadmin ? [api.get<Company[]>("/api/v1/companies")] : [])
-      ]);
+      const machinesData = await api.get<Machine[]>("/api/v1/machines");
+      const branchesData = await api.get<Branch[]>("/api/v1/branches");
+      const modulesData = await api.get<Module[]>("/api/v1/modules");
       
       setMachines(machinesData);
       setBranches(branchesData);
-      if (isSuperadmin && companiesData) {
-        setCompanies(companiesData as Company[]);
+      setModules(modulesData);
+      
+      if (isSuperadmin) {
+        const companiesData = await api.get<Company[]>("/api/v1/companies");
+        setCompanies(companiesData);
       }
-    } catch { toast.error("Failed to load data"); }
+    } catch { toast.error("Failed to load machines"); }
     finally { setLoading(false); }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [isSuperadmin]);
 
   function openCreate() {
@@ -87,6 +97,7 @@ export default function MachinesPage() {
       status: "active", 
       company_id: "",
       branch_id: "",
+      module_ids: [],
       equipment_type: "",
       rated_power: "",
       voltage_rating: "",
@@ -118,6 +129,7 @@ export default function MachinesPage() {
       status: m.status, 
       company_id: m.company_id,
       branch_id: m.branch_id || "",
+      module_ids: m.modules?.map(mod => mod.id) || [],
       equipment_type: m.equipment_type || "",
       rated_power: m.rated_power?.toString() || "",
       voltage_rating: m.voltage_rating || "",
@@ -215,6 +227,16 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
     m.code.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedMachines = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   if (!permissions["machines.read"]) {
     return (
       <div className="flex items-center justify-center h-96 animate-fade-in">
@@ -223,7 +245,7 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
             <Cpu className="w-8 h-8 text-red-500" />
           </div>
           <h3 className="text-lg font-bold text-foreground mb-2">Access Denied</h3>
-          <p className="text-sm text-muted-foreground">You don't have permission to access the machines directory. Please contact your administrator.</p>
+          <p className="text-sm text-muted-foreground">You don&apos;t have permission to access the machines directory. Please contact your administrator.</p>
         </div>
       </div>
     );
@@ -256,10 +278,7 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
       {/* Table */}
       <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <span className="text-sm font-medium animate-pulse">Loading machines...</span>
-          </div>
+          <EnergyPulseLoader text="Loading machines..." />
         ) : filtered.length === 0 ? (
           <div className="p-16 text-center">
             <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border/50">
@@ -281,7 +300,7 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {filtered.map((m, i) => (
+                {paginatedMachines.map((m, i) => (
                   <tr key={m.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => router.push(`/machines/${m.id}`)}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -347,6 +366,14 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
               </tbody>
             </table>
           </div>
+        )}
+        
+        {filtered.length > 0 && !loading && (
+          <AnimatedPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 
@@ -419,6 +446,41 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                   {fieldErrors.location && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.location}</p>}
                 </div>
                 
+                {/* Company Selection - Only for Superadmin */}
+                {isSuperadmin && (
+                  <div>
+                    <label className="block text-sm font-bold text-foreground mb-1.5">
+                      Company <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Building2 className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />
+                      <select
+                        value={form.company_id}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, company_id: e.target.value, branch_id: "" }));
+                          if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
+                        }}
+                        className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.company_id 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="" disabled>Select a company</option>
+                        {companies.map((company) => (
+                          <option key={company.id} value={company.id}>
+                            {company.name} (@{company.slug})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                    {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
+                  </div>
+                )}
+                
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Branch {editing ? "" : <span className="text-red-500">*</span>}</label>
                   <div className="relative">
@@ -435,18 +497,75 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                           : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
                       }`}
                     >
-                      <option value="" disabled>Select a branch</option>
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name} ({branch.city}, {branch.state})
-                        </option>
-                      ))}
+                      <option value="" disabled>
+                        {form.company_id ? "Select a branch" : "Select a company first"}
+                      </option>
+                      {branches
+                        .filter(branch => !form.company_id || branch.company_id === form.company_id)
+                        .map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name} ({branch.city}, {branch.state})
+                          </option>
+                        ))}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                     </div>
                   </div>
                   {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
+                </div>
+
+                {/* Module Selection */}
+                <div>
+                  <label className="block text-sm font-bold text-foreground mb-1.5">Monitoring Modules (Optional)</label>
+                  <div className="overflow-x-auto pb-2">
+                    <div className="flex gap-3 min-w-max">
+                      {modules.length === 0 ? (
+                        <div className="w-full border border-border/60 rounded-xl p-6 bg-card/50 text-center">
+                          <p className="text-sm text-muted-foreground">No modules available</p>
+                        </div>
+                      ) : (
+                        modules.map((module) => (
+                          <label
+                            key={module.id}
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border cursor-pointer transition-all min-w-[120px] ${
+                              form.module_ids.includes(module.id)
+                                ? 'border-brand-500 bg-brand-500/10 shadow-sm shadow-brand-500/20'
+                                : 'border-border/60 bg-card/50 hover:border-brand-500/50 hover:bg-brand-500/5'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={form.module_ids.includes(module.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setForm((f) => ({ ...f, module_ids: [...f.module_ids, module.id] }));
+                                } else {
+                                  setForm((f) => ({ ...f, module_ids: f.module_ids.filter(id => id !== module.id) }));
+                                }
+                              }}
+                              className="sr-only"
+                            />
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              form.module_ids.includes(module.id)
+                                ? 'bg-brand-500 text-white'
+                                : 'bg-muted/50 text-muted-foreground'
+                            }`}>
+                              <Package className="w-5 h-5" />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-foreground">{module.name}</p>
+                              <p className="text-xs text-muted-foreground">{module.unit}</p>
+                            </div>
+                            {form.module_ids.includes(module.id) && (
+                              <div className="w-2 h-2 bg-brand-500 rounded-full"></div>
+                            )}
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">Select which monitoring modules this machine uses. Multiple modules can be selected.</p>
                 </div>
                 
                 {/* Energy Monitoring Fields */}
@@ -836,40 +955,6 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                   </div>
                 </div>
                 
-                {/* Company Selection - Only for Superadmin */}
-                {isSuperadmin && (
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">
-                      Company <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Building2 className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                      <select
-                        value={form.company_id}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, company_id: e.target.value }));
-                          if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
-                        }}
-                        className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.company_id 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="" disabled>Select a company</option>
-                        {companies.map((company) => (
-                          <option key={company.id} value={company.id}>
-                            {company.name} (@{company.slug})
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </div>
-                    </div>
-                    {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
-                  </div>
-                )}
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Status</label>
                   <div className="relative">

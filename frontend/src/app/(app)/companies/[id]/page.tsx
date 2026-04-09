@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Building2, Users, Cpu, MapPin, Edit, Trash2, Plus, AlertCircle, Loader2, Phone, Mail, Calendar, Settings, ChevronRight } from "lucide-react";
+import { ArrowLeft, Building2, Users, Cpu, MapPin, Edit, Trash2, Plus, AlertCircle, Phone, Mail, Calendar, Settings, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import type { Company, Branch, Machine, CompanyUser } from "@/types";
 
 const COMPANY_STATUS_CLASSES = {
@@ -38,15 +39,14 @@ export default function CompanyDetailPage() {
   async function loadCompany() {
     setLoading(true);
     try {
-      const [companyData, branchesData, machinesData, usersData] = await Promise.all([
+      const [companyData, machinesData, usersData] = await Promise.all([
         api.get<Company>(`/api/v1/companies/${companyId}`),
-        api.get<Branch[]>(`/api/v1/branches?company_id=${companyId}`),
         api.get<Machine[]>(`/api/v1/machines?company_id=${companyId}`),
         api.get<CompanyUser[]>(`/api/v1/users?company_id=${companyId}`)
       ]);
       
       setCompany(companyData);
-      setBranches(branchesData);
+      setBranches(companyData.branches || []);
       setMachines(machinesData);
       setUsers(usersData);
     } catch (error: unknown) {
@@ -57,10 +57,12 @@ export default function CompanyDetailPage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (companyId) {
       loadCompany();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
   async function handleDelete() {
@@ -78,14 +80,7 @@ export default function CompanyDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-500 mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading company details...</p>
-        </div>
-      </div>
-    );
+    return <EnergyPulseLoader text="Loading company details..." />;
   }
 
   if (!company) {
@@ -186,17 +181,17 @@ export default function CompanyDetailPage() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Branches</span>
-              <span className="text-lg font-bold text-foreground">{branches.length}</span>
+              <span className="text-lg font-bold text-foreground">{company.branch_count || 0}</span>
             </div>
             
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Equipment</span>
-              <span className="text-lg font-bold text-foreground">{machines.length}</span>
+              <span className="text-lg font-bold text-foreground">{company.machine_count || 0}</span>
             </div>
             
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Users</span>
-              <span className="text-lg font-bold text-foreground">{users.length}</span>
+              <span className="text-lg font-bold text-foreground">{company.user_count || 0}</span>
             </div>
             
             <div className="flex justify-between items-center">
@@ -210,66 +205,18 @@ export default function CompanyDetailPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="glass-card p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
-              <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
-            </div>
-            <h2 className="text-lg font-bold text-foreground">Quick Actions</h2>
-          </div>
-          
-          <div className="space-y-2">
-            <button
-              onClick={() => router.push(`/branches/new?company_id=${companyId}`)}
-              className="w-full px-4 py-2 rounded-lg border border-border/60 bg-card/50 text-sm font-medium hover:bg-background transition-all flex items-center justify-center gap-2"
-            >
-              <MapPin className="w-4 h-4" />
-              Create Branch
-            </button>
-            
-            <button
-              onClick={() => router.push(`/machines/new?company_id=${companyId}`)}
-              className="w-full px-4 py-2 rounded-lg border border-border/60 bg-card/50 text-sm font-medium hover:bg-background transition-all flex items-center justify-center gap-2"
-            >
-              <Cpu className="w-4 h-4" />
-              Add Equipment
-            </button>
-            
-            <button
-              onClick={() => router.push(`/users/new?company_id=${companyId}`)}
-              className="w-full px-4 py-2 rounded-lg border border-border/60 bg-card/50 text-sm font-medium hover:bg-background transition-all flex items-center justify-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              Add User
-            </button>
-          </div>
         </div>
-      </div>
 
       {/* Branches Section */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-foreground">Branches</h3>
-          <button
-            onClick={() => router.push(`/branches/new?company_id=${companyId}`)}
-            className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Branch
-          </button>
         </div>
         
         {branches.length === 0 ? (
           <div className="text-center py-8">
             <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">No branches yet</p>
-            <button
-              onClick={() => router.push(`/branches/new?company_id=${companyId}`)}
-              className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-all"
-            >
-              Create First Branch
-            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -348,7 +295,7 @@ export default function CompanyDetailPage() {
           >
             <h3 className="text-lg font-bold text-foreground mb-2">Delete Company</h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Are you sure you want to delete "{company.name}"? This will also delete all branches, equipment, and users associated with this company. This action cannot be undone.
+              Are you sure you want to delete &quot;{company.name}&quot;? This will also delete all branches, equipment, and users associated with this company. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -362,7 +309,7 @@ export default function CompanyDetailPage() {
                 disabled={deleteLoading}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-all disabled:opacity-50"
               >
-                {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+                {deleteLoading ? "Deleting..." : "Delete"}
               </button>
             </div>
           </motion.div>

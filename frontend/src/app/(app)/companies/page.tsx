@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Company } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 export default function CompaniesPage() {
   const router = useRouter();
@@ -25,6 +27,8 @@ export default function CompaniesPage() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; company: Company | null }>({ show: false, company: null });
   const [fieldErrors, setFieldErrors] = useState<{name?: string; slug?: string}>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   async function load() {
     setLoading(true);
@@ -35,13 +39,14 @@ export default function CompaniesPage() {
     finally { setLoading(false); }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isSuperadmin) {
       toast.error("Access denied");
       return;
     }
     load();
-  }, [permissions]);
+  }, [isSuperadmin]);
 
   const filtered = companies
     .filter((c) => {
@@ -67,6 +72,16 @@ export default function CompaniesPage() {
       
       return sortOrder === "asc" ? comparison : -comparison;
     });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedCompanies = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search/filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, sortBy, sortOrder]);
 
   function openCreateModal() {
     setForm({ name: "", slug: "", status: "active" });
@@ -172,7 +187,7 @@ export default function CompaniesPage() {
             <Building2 className="w-8 h-8 text-red-500" />
           </div>
           <h3 className="text-lg font-bold text-foreground mb-2">Access Denied</h3>
-          <p className="text-sm text-muted-foreground">You don't have permission to access the companies directory.</p>
+          <p className="text-sm text-muted-foreground">You don&apos;t have permission to access the companies directory. Please contact your administrator.</p>
         </div>
       </div>
     );
@@ -247,10 +262,7 @@ export default function CompaniesPage() {
       {/* Companies Grid */}
       <div className="glass-card overflow-hidden">
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <span className="text-sm font-medium animate-pulse">Loading companies...</span>
-          </div>
+          <EnergyPulseLoader text="Loading companies..." />
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 glass-card">
             <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -262,8 +274,8 @@ export default function CompaniesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((company, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
+            {paginatedCompanies.map((company, index) => (
               <motion.div
                 key={company.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -360,6 +372,13 @@ export default function CompaniesPage() {
               </motion.div>
             ))}
           </div>
+        )}
+        {filtered.length > 0 && !loading && (
+          <AnimatedPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 

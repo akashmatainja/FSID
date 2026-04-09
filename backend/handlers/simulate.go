@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/companyuser/backend/database"
@@ -61,13 +62,27 @@ func Simulate(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "no machines found"})
 	}
 
-	metrics := []string{"power", "energy", "voltage", "current", "power_factor"}
+	// Create a map to store machine modules for efficient lookup
+	machineModules := make(map[uuid.UUID][]models.Module)
+
+	// Load modules for each machine
+	for _, machineID := range machineIDs {
+		var machine models.Machine
+		if err := database.DB.Preload("Modules").First(&machine, "id = ?", machineID).Error; err == nil {
+			machineModules[machineID] = machine.Modules
+		}
+	}
+
+	// Default base values for common metrics
 	baseValues := map[string]float64{
 		"power":        250.0,  // kW
 		"energy":       1250.0, // kWh
 		"voltage":      415.0,  // V
 		"current":      32.0,   // A
 		"power_factor": 0.85,   // unitless
+		"frequency":    50.0,   // Hz
+		"temperature":  25.0,   // °C
+		"vibration":    5.0,    // mm/s
 	}
 	units := map[string]string{
 		"power":        "kW",
@@ -75,6 +90,9 @@ func Simulate(c *fiber.Ctx) error {
 		"voltage":      "V",
 		"current":      "A",
 		"power_factor": "",
+		"frequency":    "Hz",
+		"temperature":  "°C",
+		"vibration":    "mm/s",
 	}
 
 	total := seconds * rate
@@ -83,8 +101,22 @@ func Simulate(c *fiber.Ctx) error {
 
 	for i := 0; i < total; i++ {
 		machineID := machineIDs[rand.Intn(len(machineIDs))]
-		metric := metrics[rand.Intn(len(metrics))]
-		base := baseValues[metric]
+
+		// Get modules assigned to this machine
+		modules := machineModules[machineID]
+		if len(modules) == 0 {
+			continue // Skip machines with no modules
+		}
+
+		// Select a random module from this machine's assigned modules
+		module := modules[rand.Intn(len(modules))]
+		metric := strings.ToLower(module.Code)
+
+		// Get base value for this metric, use default if not found
+		base, ok := baseValues[metric]
+		if !ok {
+			base = 100.0 // Default fallback value
+		}
 
 		// Simulate slight drift + noise
 		value := base + math.Sin(float64(i)*0.1)*base*0.05 + (rand.Float64()-0.5)*base*0.03
@@ -97,7 +129,7 @@ func Simulate(c *fiber.Ctx) error {
 			Ts:          time.Now(),
 			MetricKey:   metric,
 			MetricValue: value,
-			Meta:        map[string]any{"unit": units[metric], "simulated": true},
+			Meta:        map[string]any{"unit": units[metric], "simulated": true, "module_id": module.ID},
 		}
 		database.DB.Create(&stat)
 		inserted++

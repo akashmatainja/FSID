@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Branch, Company } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
@@ -42,7 +44,11 @@ export default function BranchesPage() {
   const [confirmAction, setConfirmAction] = useState<() => Promise<boolean>>();
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{name?: string; code?: string; company_id?: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<{name?: string; code?: string; address?: string; city?: string; state?: string; pincode?: string; phone?: string; email?: string; company_id?: string}>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   async function load() {
     setLoading(true);
@@ -60,6 +66,7 @@ export default function BranchesPage() {
     finally { setLoading(false); }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [isSuperadmin]);
 
   function openCreate() {
@@ -153,8 +160,19 @@ export default function BranchesPage() {
 
   const filtered = branches.filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.code.toLowerCase().includes(search.toLowerCase())
+    b.code.toLowerCase().includes(search.toLowerCase()) ||
+    b.city.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedBranches = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   if (!permissions["branches.read"]) {
     return (
@@ -164,7 +182,7 @@ export default function BranchesPage() {
             <MapPin className="w-8 h-8 text-red-500" />
           </div>
           <h3 className="text-lg font-bold text-foreground mb-2">Access Denied</h3>
-          <p className="text-sm text-muted-foreground">You don't have permission to access the branches directory. Please contact your administrator.</p>
+          <p className="text-sm text-muted-foreground">You don&apos;t have permission to access the branches directory. Please contact your administrator.</p>
         </div>
       </div>
     );
@@ -197,10 +215,7 @@ export default function BranchesPage() {
       {/* Table */}
       <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <span className="text-sm font-medium animate-pulse">Loading branches...</span>
-          </div>
+          <EnergyPulseLoader text="Loading branches..." />
         ) : filtered.length === 0 ? (
           <div className="p-16 text-center">
             <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border/50">
@@ -222,7 +237,7 @@ export default function BranchesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {filtered.map((b, i) => (
+                {paginatedBranches.map((b, i) => (
                   <tr key={b.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => router.push(`/branches/${b.id}`)}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -308,6 +323,14 @@ export default function BranchesPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {filtered.length > 0 && !loading && (
+          <AnimatedPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 

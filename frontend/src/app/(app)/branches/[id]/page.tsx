@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Building2, Phone, Mail, Calendar, Users, Cpu, Settings, Edit, Trash2, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Building2, Phone, Mail, Calendar, Users, Cpu, Settings, Edit, Trash2, AlertCircle, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Branch, Machine, CompanyUser } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import type { Branch, Machine, CompanyUser, Subdivision } from "@/types";
 
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
@@ -24,6 +25,7 @@ export default function BranchDetailPage() {
   const [branch, setBranch] = useState<Branch | null>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [subdivisions, setSubdivisions] = useState<Subdivision[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -31,16 +33,22 @@ export default function BranchDetailPage() {
   async function loadBranch() {
     setLoading(true);
     try {
-      const [branchData, machinesData] = await Promise.all([
-        api.get<Branch>(`/api/v1/branches/${branchId}`),
-        api.get<Machine[]>(`/api/v1/machines?branch_id=${branchId}`)
-      ]);
+      const branchData = await api.get<Branch>(`/api/v1/branches/${branchId}`);
       
-      const usersData = await api.get<CompanyUser[]>(`/api/v1/users?branch_id=${branchId}`);
+      const [usersData, machinesData, subdivisionsData] = await Promise.all([
+        api.get<CompanyUser[]>(`/api/v1/users?branch_id=${branchId}`),
+        api.get<Machine[]>("/api/v1/machines").then(machines => 
+          machines.filter(machine => machine.branch_id === branchId)
+        ),
+        api.get<Subdivision[]>("/api/v1/subdivisions").then(subdivisions => 
+          subdivisions.filter(sub => sub.branch_id === branchId)
+        )
+      ]);
       
       setBranch(branchData);
       setMachines(machinesData);
       setUsers(usersData);
+      setSubdivisions(subdivisionsData);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to load branch details");
       router.push("/branches");
@@ -49,10 +57,12 @@ export default function BranchDetailPage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (branchId) {
       loadBranch();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
 
   async function handleDelete() {
@@ -70,14 +80,7 @@ export default function BranchDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-500 mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading branch details...</p>
-        </div>
-      </div>
-    );
+    return <EnergyPulseLoader text="Loading branch details..." />;
   }
 
   if (!branch) {
@@ -97,7 +100,7 @@ export default function BranchDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push("/branches")}
+            onClick={() => router.back()}
             className="w-10 h-10 rounded-xl border border-border/60 bg-card/50 hover:bg-background transition-all flex items-center justify-center"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -158,7 +161,7 @@ export default function BranchDetailPage() {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Company</p>
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-muted-foreground" />
-                <p className="text-sm font-bold text-foreground">{branch.company?.name || 'Unknown'}</p>
+                <p className="text-sm font-bold text-foreground">@{branch.company?.slug || "unknown"}</p>
               </div>
             </div>
           </div>
@@ -239,7 +242,7 @@ export default function BranchDetailPage() {
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="glass-card p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -260,6 +263,18 @@ export default function BranchDetailPage() {
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
               <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Subdivisions</p>
+              <p className="text-2xl font-bold text-foreground">{subdivisions.length}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+              <GitBranch className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
@@ -341,7 +356,7 @@ export default function BranchDetailPage() {
           >
             <h3 className="text-lg font-bold text-foreground mb-2">Delete Branch</h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Are you sure you want to delete "{branch.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{branch.name}&quot;? This will also delete all equipment and data associated with this branch. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -355,7 +370,7 @@ export default function BranchDetailPage() {
                 disabled={deleteLoading}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-all disabled:opacity-50"
               >
-                {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+                {deleteLoading ? "Deleting..." : "Delete"}
               </button>
             </div>
           </motion.div>

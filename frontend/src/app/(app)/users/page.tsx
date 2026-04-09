@@ -5,7 +5,9 @@ import { Plus, Users as UsersIcon, Search, Loader2, Trash2, Pencil, Shield, Buil
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { CompanyUser, Role, Company, Branch } from "@/types";
+import type { CompanyUser, Role, Company, Branch, Subdivision } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 export default function UsersPage() {
   const { permissions, companyUser } = useAuth();
@@ -17,13 +19,18 @@ export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CompanyUser | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role_id: "", password: "", company_id: "", branch_id: "" });
+  const [form, setForm] = useState({ name: "", email: "", role_id: "", password: "", company_id: "", branch_id: "", subdivision_id: "" });
   const [roles, setRoles] = useState<Role[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [subdivisions, setSubdivisions] = useState<Subdivision[]>([]);
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; user: CompanyUser | null }>({ show: false, user: null });
   const [deleting, setDeleting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{name?: string; email?: string; role_id?: string; password?: string; company_id?: string; branch_id?: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<{name?: string; email?: string; password?: string; role_id?: string; company_id?: string; branch_id?: string; subdivision_id?: string}>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   async function load() {
     setLoading(true);
@@ -42,14 +49,18 @@ export default function UsersPage() {
         setCompanies(companiesData);
       }
       
-      // Load branches for current company or all if superadmin
+      // Load branches and subdivisions for current company or all if superadmin
       const branchesData = await api.get<Branch[]>("/api/v1/branches");
       setBranches(branchesData);
+      
+      const subdivisionsData = await api.get<Subdivision[]>("/api/v1/subdivisions");
+      setSubdivisions(subdivisionsData);
     } catch { toast.error("Failed to load data"); }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [permissions]); // Reload when permissions change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [isSuperadmin, permissions]); // Reload when permissions change
 
   function openEdit(user: CompanyUser) {
     setEditing(user);
@@ -59,7 +70,8 @@ export default function UsersPage() {
       role_id: user.user_roles?.[0]?.role_id || "",
       password: "", // Don't populate password for edit
       company_id: user.company_id || "",
-      branch_id: user.branch_id || ""
+      branch_id: user.branch_id || "",
+      subdivision_id: user.subdivision_id || ""
     });
     setFieldErrors({});
     setShowModal(true);
@@ -140,11 +152,23 @@ export default function UsersPage() {
     }
   }
 
-  const filtered = users.filter((u) =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    (isSuperadmin && u.company?.name?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = users.filter((u) => {
+    const searchMatch = 
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      u.company?.name?.toLowerCase().includes(search.toLowerCase());
+    return searchMatch;
+  });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedUsers = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   return (
     <div className="space-y-6 animate-fade-in pb-8">
@@ -161,7 +185,7 @@ export default function UsersPage() {
           <button
             onClick={() => {
               setEditing(null);
-              setForm({ name: "", email: "", role_id: "", password: "", company_id: "", branch_id: "" });
+              setForm({ name: "", email: "", role_id: "", password: "", company_id: "", branch_id: "", subdivision_id: "" });
               setFieldErrors({});
               setShowModal(true);
             }}
@@ -188,10 +212,7 @@ export default function UsersPage() {
       {/* Users Grid */}
       <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <span className="text-sm font-medium animate-pulse">Loading users...</span>
-          </div>
+          <EnergyPulseLoader text="Loading users..." />
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 glass-card">
             <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border/50">
@@ -203,8 +224,8 @@ export default function UsersPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((user, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
+            {paginatedUsers.map((user, index) => (
               <motion.div
                 key={user.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -323,6 +344,14 @@ export default function UsersPage() {
             ))}
           </div>
         )}
+        
+        {filtered.length > 0 && !loading && (
+          <AnimatedPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
 
       {/* Edit/Create Modal */}
@@ -424,7 +453,7 @@ export default function UsersPage() {
                     <select 
                       value={form.branch_id} 
                       onChange={(e) => {
-                        setForm((f) => ({ ...f, branch_id: e.target.value }));
+                        setForm((f) => ({ ...f, branch_id: e.target.value, subdivision_id: "" }));
                         if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
                       }} 
                       className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
@@ -448,6 +477,40 @@ export default function UsersPage() {
                   </div>
                   {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
                 </div>
+
+                {form.branch_id && (
+                  <div>
+                    <label className="block text-sm font-bold text-foreground mb-1.5">Subdivision Assignment</label>
+                    <div className="relative">
+                      <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.subdivision_id ? 'text-red-500' : 'text-muted-foreground'}`} />
+                      <select 
+                        value={form.subdivision_id} 
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, subdivision_id: e.target.value }));
+                          if (fieldErrors.subdivision_id) setFieldErrors({...fieldErrors, subdivision_id: undefined});
+                        }} 
+                        className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                          fieldErrors.subdivision_id 
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
+                        }`}
+                      >
+                        <option value="">No subdivision (branch-wide access)</option>
+                        {subdivisions
+                          .filter(subdivision => subdivision.branch_id === form.branch_id)
+                          .map((subdivision) => (
+                            <option key={subdivision.id} value={subdivision.id}>
+                              {subdivision.name} ({subdivision.code})
+                            </option>
+                          ))}
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                    {fieldErrors.subdivision_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.subdivision_id}</p>}
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Role Assignment <span className="text-red-500">*</span></label>

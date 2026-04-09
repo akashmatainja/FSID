@@ -28,12 +28,15 @@ type Company struct {
 	Metadata  JSONB     `json:"metadata" gorm:"type:jsonb;default:'{}'"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+
+	Branches []Branch `json:"branches,omitempty" gorm:"foreignKey:CompanyID"`
 }
 
 type CompanyUser struct {
 	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
 	CompanyID      uuid.UUID  `json:"company_id" gorm:"type:uuid;not null"`
-	BranchID       *uuid.UUID `json:"branch_id" gorm:"type:uuid"` // Nullable - user assigned to specific branch
+	BranchID       *uuid.UUID `json:"branch_id" gorm:"type:uuid"`
+	SubdivisionID  *uuid.UUID `json:"subdivision_id" gorm:"type:uuid"`
 	AuthUserID     uuid.UUID  `json:"auth_user_id" gorm:"type:uuid;not null;uniqueIndex"`
 	Name           string     `json:"name"`
 	Email          string     `json:"email"`
@@ -45,6 +48,7 @@ type CompanyUser struct {
 
 	Company            Company             `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
 	Branch             *Branch             `json:"branch,omitempty" gorm:"foreignKey:BranchID"`
+	Subdivision        *Subdivision        `json:"subdivision,omitempty" gorm:"foreignKey:SubdivisionID"`
 	UserRoles          []UserRole          `json:"user_roles,omitempty" gorm:"foreignKey:UserID"`
 	MachineAssignments []MachineAssignment `json:"machine_assignments,omitempty" gorm:"foreignKey:UserID"`
 }
@@ -111,18 +115,51 @@ type Branch struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
+	Company      Company       `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	Machines     []Machine     `json:"machines,omitempty" gorm:"foreignKey:BranchID"`
+	Subdivisions []Subdivision `json:"subdivisions,omitempty" gorm:"foreignKey:BranchID"`
+}
+
+type Subdivision struct {
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	CompanyID   uuid.UUID `json:"company_id" gorm:"type:uuid;not null"`
+	BranchID    uuid.UUID `json:"branch_id" gorm:"type:uuid;not null"`
+	Name        string    `json:"name"`
+	Code        string    `json:"code"`
+	Description string    `json:"description"`
+	Status      string    `json:"status" gorm:"default:active"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
 	Company  Company   `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
-	Machines []Machine `json:"machines,omitempty" gorm:"foreignKey:BranchID"`
+	Branch   Branch    `json:"branch,omitempty" gorm:"foreignKey:BranchID"`
+	Machines []Machine `json:"machines,omitempty" gorm:"foreignKey:SubdivisionID"`
+}
+
+type Module struct {
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	Name        string    `json:"name" gorm:"uniqueIndex"`
+	Code        string    `json:"code" gorm:"uniqueIndex"`
+	Description string    `json:"description"`
+	Unit        string    `json:"unit"` // kW, kWh, V, A, etc.
+	Status      string    `json:"status" gorm:"default:active"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	Machines []Machine `json:"machines,omitempty" gorm:"many2many:machine_modules"`
 }
 
 type Machine struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	CompanyID uuid.UUID `json:"company_id" gorm:"type:uuid;not null"`
-	BranchID  uuid.UUID `json:"branch_id" gorm:"type:uuid"` // Made nullable for backward compatibility
-	Name      string    `json:"name"`
-	Code      string    `json:"code"`
-	Location  string    `json:"location"`
-	Status    string    `json:"status" gorm:"default:active"`
+	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	CompanyID     uuid.UUID  `json:"company_id" gorm:"type:uuid;not null"`
+	BranchID      uuid.UUID  `json:"branch_id" gorm:"type:uuid"`
+	SubdivisionID *uuid.UUID `json:"subdivision_id" gorm:"type:uuid"`
+	Name          string     `json:"name"`
+	Code          string     `json:"code"`
+	Location      string     `json:"location"`
+	Status        string     `json:"status" gorm:"default:active"`
 
 	// Energy Monitoring Fields
 	EquipmentType  string  `json:"equipment_type"`  // Motor, Pump, Compressor, etc.
@@ -144,10 +181,23 @@ type Machine struct {
 	SolarCompatible     string    `json:"solar_compatible"`
 	SolarPriority       string    `json:"solar_priority"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Company   Company   `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
-	Branch    Branch    `json:"branch,omitempty" gorm:"foreignKey:BranchID"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	Company        Company         `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
+	Branch         Branch          `json:"branch,omitempty" gorm:"foreignKey:BranchID"`
+	Subdivision    *Subdivision    `json:"subdivision,omitempty" gorm:"foreignKey:SubdivisionID"`
+	MachineModules []MachineModule `json:"machine_modules,omitempty" gorm:"foreignKey:MachineID"`
+	Modules        []Module        `json:"modules,omitempty" gorm:"many2many:machine_modules"`
+}
+
+type MachineModule struct {
+	MachineID uuid.UUID `json:"machine_id" gorm:"type:uuid;primaryKey"`
+	ModuleID  uuid.UUID `json:"module_id" gorm:"type:uuid;primaryKey"`
+	CreatedAt time.Time `json:"created_at" gorm:"default:now()"`
+
+	// Relationships
+	Machine Machine `json:"machine,omitempty" gorm:"foreignKey:MachineID"`
+	Module  Module  `json:"module,omitempty" gorm:"foreignKey:ModuleID"`
 }
 
 type MachineAssignment struct {
@@ -183,6 +233,39 @@ type UpdateBranchRequest struct {
 	Phone   *string `json:"phone"`
 	Email   *string `json:"email"`
 	Status  *string `json:"status"`
+}
+
+// Subdivision Request Models
+type CreateSubdivisionRequest struct {
+	BranchID    string `json:"branch_id" validate:"required"`
+	Name        string `json:"name" validate:"required"`
+	Code        string `json:"code" validate:"required"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+}
+
+type UpdateSubdivisionRequest struct {
+	Name        *string `json:"name"`
+	Code        *string `json:"code"`
+	Description *string `json:"description"`
+	Status      *string `json:"status"`
+}
+
+// Module Request Models
+type CreateModuleRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Code        string `json:"code" validate:"required"`
+	Description string `json:"description"`
+	Unit        string `json:"unit" validate:"required"`
+	Status      string `json:"status"`
+}
+
+type UpdateModuleRequest struct {
+	Name        *string `json:"name"`
+	Code        *string `json:"code"`
+	Description *string `json:"description"`
+	Unit        *string `json:"unit"`
+	Status      *string `json:"status"`
 }
 
 type MachineStat struct {

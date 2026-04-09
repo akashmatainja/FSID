@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Key, Eye, EyeOff, Loader2, CheckCircle, Shield, Lock, User, Mail, Clock, AlertCircle } from "lucide-react";
+import { Key, Eye, EyeOff, CheckCircle, Shield, Lock, User, Mail, Clock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 
 export default function SettingsPage() {
   const { companyUser } = useAuth();
@@ -318,7 +319,7 @@ export default function SettingsPage() {
                   className="btn-primary flex-1"
                 >
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Changing...</>
+                    <>Changing...</>
                   ) : submitStatus === 'success' ? (
                     <><CheckCircle className="w-4 h-4" /> Success!</>
                   ) : (

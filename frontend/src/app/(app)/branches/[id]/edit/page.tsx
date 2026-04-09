@@ -6,6 +6,7 @@ import { ArrowLeft, Save, X, MapPin, Building2, Phone, Mail, Loader2 } from "luc
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import type { Branch } from "@/types";
 
 const STATUS_OPTIONS = [
@@ -36,10 +37,12 @@ export default function EditBranchPage() {
     status: "active" as "active" | "inactive" | "maintenance",
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (branchId) {
       loadBranch();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
 
   async function loadBranch() {
@@ -90,14 +93,7 @@ export default function EditBranchPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-500 mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading branch details...</p>
-        </div>
-      </div>
-    );
+    return <EnergyPulseLoader text="Loading branch details..." />;
   }
 
   if (!branch) {
@@ -114,7 +110,7 @@ export default function EditBranchPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <p className="text-muted-foreground">You don't have permission to edit branches</p>
+          <p className="text-sm text-muted-foreground">You don&apos;t have permission to edit branches. Please contact your administrator.</p>
         </div>
       </div>
     );

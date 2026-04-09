@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitBranch, Loader2, Plus, Trash2, Building2, User, Shield, Cpu, AlertCircle, MapPin } from "lucide-react";
+import { GitBranch, Plus, Trash2, Building2, User, Shield, Cpu, AlertCircle, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import type { CompanyUser, Role, Machine } from "@/types";
 
 export default function AssignmentsPage() {
@@ -126,12 +127,7 @@ export default function AssignmentsPage() {
       </div>
 
       {loading ? (
-        <div className="glass-card overflow-hidden">
-          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <span className="text-sm font-medium animate-pulse">Loading assignments...</span>
-          </div>
-        </div>
+        <EnergyPulseLoader text="Loading assignments..." />
       ) : users.length === 0 ? (
         <div className="text-center py-20 glass-card">
           <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border/50">
@@ -459,7 +455,7 @@ export default function AssignmentsPage() {
                   className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-medium shadow-sm transition-all duration-200 hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   {confirmLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Removing...</>
+                    <>Removing...</>
                   ) : (
                     'Yes, Remove'
                   )}

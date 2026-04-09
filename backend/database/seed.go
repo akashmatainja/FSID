@@ -29,6 +29,10 @@ func SeedPermissions() {
 		// New branch permissions
 		{Key: "branches.read", Description: "View branches"},
 		{Key: "branches.write", Description: "Create, update, delete branches"},
+
+		// New subdivision permissions
+		{Key: "subdivisions.read", Description: "View subdivisions"},
+		{Key: "subdivisions.write", Description: "Create, update, delete subdivisions"},
 	}
 
 	for _, perm := range permissions {
@@ -77,6 +81,115 @@ func UpdateExistingRolesWithBranchPermissions() {
 	}
 }
 
+// UpdateExistingRolesWithSubdivisionPermissions adds subdivision permissions to existing company admin roles
+func UpdateExistingRolesWithSubdivisionPermissions() {
+	// Get all company admin roles
+	var adminRoles []models.Role
+	if err := DB.Where("name = ?", "Company Admin").Find(&adminRoles).Error; err != nil {
+		log.Printf("Failed to fetch admin roles: %v", err)
+		return
+	}
+
+	subdivisionPermissions := []string{"subdivisions.read", "subdivisions.write"}
+
+	for _, role := range adminRoles {
+		for _, permKey := range subdivisionPermissions {
+			var perm models.Permission
+			if err := DB.Where("key = ?", permKey).First(&perm).Error; err == nil {
+				// Check if role already has this permission
+				var existingRolePerm models.RolePermission
+				if err := DB.Where("role_id = ? AND permission_id = ?", role.ID, perm.ID).First(&existingRolePerm).Error; err == gorm.ErrRecordNotFound {
+					// Add the permission
+					rolePerm := models.RolePermission{
+						RoleID:       role.ID,
+						PermissionID: perm.ID,
+					}
+					if err := DB.Create(&rolePerm).Error; err != nil {
+						log.Printf("Failed to add permission %s to role %s: %v", permKey, role.Name, err)
+					} else {
+						log.Printf("Added subdivision permission %s to role %s (Company: %s)", permKey, role.Name, role.CompanyID)
+					}
+				}
+			}
+		}
+	}
+}
+
+// SeedModules seeds the initial modules into the database
+func SeedModules() {
+	modules := []models.Module{
+		{
+			Name:        "Power",
+			Code:        "POWER",
+			Description: "Real-time power consumption monitoring",
+			Unit:        "kW",
+			Status:      "active",
+		},
+		{
+			Name:        "Energy",
+			Code:        "ENERGY",
+			Description: "Cumulative energy consumption tracking",
+			Unit:        "kWh",
+			Status:      "active",
+		},
+		{
+			Name:        "Voltage",
+			Code:        "VOLTAGE",
+			Description: "Voltage level monitoring",
+			Unit:        "V",
+			Status:      "active",
+		},
+		{
+			Name:        "Current",
+			Code:        "CURRENT",
+			Description: "Current flow measurement",
+			Unit:        "A",
+			Status:      "active",
+		},
+		{
+			Name:        "Power Factor",
+			Code:        "POWER_FACTOR",
+			Description: "Power factor efficiency measurement",
+			Unit:        "PF",
+			Status:      "active",
+		},
+		{
+			Name:        "Frequency",
+			Code:        "FREQUENCY",
+			Description: "Electrical frequency monitoring",
+			Unit:        "Hz",
+			Status:      "active",
+		},
+		{
+			Name:        "Temperature",
+			Code:        "TEMPERATURE",
+			Description: "Equipment temperature monitoring",
+			Unit:        "°C",
+			Status:      "active",
+		},
+		{
+			Name:        "Vibration",
+			Code:        "VIBRATION",
+			Description: "Mechanical vibration monitoring",
+			Unit:        "mm/s",
+			Status:      "active",
+		},
+	}
+
+	for _, module := range modules {
+		var existingModule models.Module
+		if err := DB.Where("code = ?", module.Code).First(&existingModule).Error; err == gorm.ErrRecordNotFound {
+			if err := DB.Create(&module).Error; err != nil {
+				log.Printf("Failed to create module %s: %v", module.Code, err)
+			} else {
+				log.Printf("Created module: %s (%s)", module.Name, module.Code)
+			}
+		} else {
+			log.Printf("Module %s already exists, skipping", module.Code)
+		}
+	}
+}
+
 // SeedData seeds initial data into the database
 func SeedData() {
 	log.Println("Seeding initial data...")
@@ -86,6 +199,12 @@ func SeedData() {
 
 	// Update existing roles with new branch permissions
 	UpdateExistingRolesWithBranchPermissions()
+
+	// Update existing roles with new subdivision permissions
+	UpdateExistingRolesWithSubdivisionPermissions()
+
+	// Seed initial modules
+	SeedModules()
 
 	log.Println("Database seeding completed")
 }

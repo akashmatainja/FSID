@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Role, Permission } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 export default function RolesPage() {
   const { permissions: userPerms, refreshPermissions } = useAuth();
@@ -23,7 +25,11 @@ export default function RolesPage() {
   const [confirmAction, setConfirmAction] = useState<() => Promise<boolean>>();
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{name?: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<{name?: string; description?: string}>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   async function load() {
     setLoading(true);
@@ -111,6 +117,16 @@ export default function RolesPage() {
     (r.description || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRoles = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header */}
@@ -138,10 +154,7 @@ export default function RolesPage() {
       {/* Roles Grid */}
       <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <span className="text-sm font-medium animate-pulse">Loading roles...</span>
-          </div>
+          <EnergyPulseLoader text="Loading roles..." />
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 glass-card">
             <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-border/50">
@@ -151,8 +164,8 @@ export default function RolesPage() {
             <p className="text-sm font-medium text-muted-foreground">Try adjusting your search terms or create a new role.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filtered.map((r, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
+            {paginatedRoles.map((r, i) => (
               <motion.div 
                 key={r.id} 
                 initial={{ opacity: 0, y: 20 }} 
@@ -248,6 +261,14 @@ export default function RolesPage() {
               </motion.div>
             ))}
           </div>
+        )}
+
+        {filtered.length > 0 && !loading && (
+          <AnimatedPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 

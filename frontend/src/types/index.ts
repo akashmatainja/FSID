@@ -9,6 +9,7 @@ export interface Company {
   role_count?: number;
   stats_count?: number;
   branch_count?: number;
+  branches?: Branch[];
 }
 
 export interface Branch {
@@ -27,12 +28,41 @@ export interface Branch {
   updated_at: string;
   company?: Company;
   machines?: Machine[];
+  subdivisions?: Subdivision[];
+}
+
+export interface Subdivision {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  name: string;
+  code: string;
+  description: string;
+  status: "active" | "inactive";
+  created_at: string;
+  updated_at: string;
+  company?: Company;
+  branch?: Branch;
+  machines?: Machine[];
+}
+
+export interface Module {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  unit: string;
+  status: "active" | "inactive";
+  created_at: string;
+  updated_at: string;
+  machines?: Machine[];
 }
 
 export interface CompanyUser {
   id: string;
   company_id: string;
   branch_id?: string;
+  subdivision_id?: string;
   auth_user_id: string;
   name: string;
   email: string;
@@ -42,6 +72,7 @@ export interface CompanyUser {
   machine_assignments?: MachineAssignment[];
   company?: Company;
   branch?: Branch;
+  subdivision?: Subdivision;
   permissions?: Record<string, boolean>; // For superadmin direct permissions
 }
 
@@ -77,6 +108,8 @@ export interface Machine {
   id: string;
   company_id: string;
   branch_id: string;
+  subdivision_id?: string;
+  module_ids?: string[];
   name: string;
   code: string;
   location: string;
@@ -112,6 +145,8 @@ export interface Machine {
   created_at: string;
   company?: Company;
   branch?: Branch;
+  subdivision?: Subdivision;
+  modules?: Module[];
 }
 
 export interface UserMachine {

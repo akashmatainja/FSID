@@ -54,7 +54,7 @@ func init() {
 	api.Get("/dashboard/summary", handlers.GetDashboardSummary)
 
 	// Companies (superadmin only)
-	api.Get("/companies", middleware.RequirePermission("superadmin"), handlers.GetCompaniesWithStats)
+	api.Get("/companies", middleware.RequirePermission("superadmin"), handlers.ListCompanies)
 	api.Get("/companies/:id", middleware.RequirePermission("superadmin"), handlers.GetCompany)
 	api.Post("/companies", middleware.RequirePermission("companies.write"), handlers.CreateCompany)
 	api.Put("/companies/:id", middleware.RequirePermission("companies.write"), handlers.UpdateCompany)
@@ -87,6 +87,27 @@ func init() {
 	api.Put("/roles/:id", middleware.RequirePermission("roles.write"), handlers.UpdateRole)
 	api.Delete("/roles/:id", middleware.RequirePermission("roles.write"), handlers.DeleteRole)
 	api.Get("/permissions", handlers.ListPermissions)
+
+	// Branches
+	api.Get("/branches", handlers.ListBranches)
+	api.Get("/branches/:id", handlers.GetBranch)
+	api.Post("/branches", middleware.RequirePermission("branches.write"), handlers.CreateBranch)
+	api.Put("/branches/:id", middleware.RequirePermission("branches.write"), handlers.UpdateBranch)
+	api.Delete("/branches/:id", middleware.RequirePermission("branches.write"), handlers.DeleteBranch)
+
+	// Subdivisions
+	api.Get("/subdivisions", handlers.ListSubdivisions)
+	api.Get("/subdivisions/:id", handlers.GetSubdivision)
+	api.Post("/subdivisions", middleware.RequirePermission("subdivisions.write"), handlers.CreateSubdivision)
+	api.Put("/subdivisions/:id", middleware.RequirePermission("subdivisions.write"), handlers.UpdateSubdivision)
+	api.Delete("/subdivisions/:id", middleware.RequirePermission("subdivisions.write"), handlers.DeleteSubdivision)
+
+	// Modules (superadmin only)
+	api.Get("/modules", handlers.ListModules)
+	api.Get("/modules/:id", handlers.GetModule)
+	api.Post("/modules", handlers.CreateModule)
+	api.Put("/modules/:id", handlers.UpdateModule)
+	api.Delete("/modules/:id", handlers.DeleteModule)
 
 	// Assignments
 	api.Post("/assignments/roles", middleware.RequirePermission("roles.write"), handlers.AssignRole)

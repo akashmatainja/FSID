@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Loader2, Plus, X, UserPlus } from "lucide-react";
+import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Machine, MachineStat, CompanyUser } from "@/types";
+import type { Machine, MachineStat, CompanyUser, Module } from "@/types";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -131,9 +132,7 @@ export default function MachineDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
+      <EnergyPulseLoader fullScreen text="Loading machine data..." />
     );
   }
 
@@ -253,6 +252,50 @@ export default function MachineDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Modules Section */}
+          <div className="mt-8 pt-6 border-t border-border/50">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <Package className="w-5 h-5 text-brand-500" />
+              Monitoring Modules
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              {machine.modules && machine.modules.length > 0 ? (
+                machine.modules.map((module, idx) => (
+                  <motion.div
+                    key={module.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-background/50 border border-border/50 backdrop-blur-sm"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                      <Package className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-foreground">{module.name}</p>
+                      <p className="text-xs text-muted-foreground">{module.code} - {module.unit}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      module.status === 'active' 
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
+                        : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
+                    }`}>
+                      {module.status}
+                    </span>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center py-8">
+                  <div className="w-12 h-12 bg-muted/50 rounded-xl flex items-center justify-center mx-auto mb-3 border border-border/50">
+                    <Package className="w-6 h-6 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No monitoring modules assigned</p>
+                  <p className="text-xs text-muted-foreground mt-1">This machine doesn't have any monitoring modules configured</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -550,10 +593,7 @@ export default function MachineDetailPage() {
                   className="flex-1 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {assignLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Assigning...
-                    </>
+                    <>Assigning...</>
                   ) : (
                     <>
                       <UserPlus className="w-4 h-4" />
@@ -614,10 +654,7 @@ export default function MachineDetailPage() {
                   className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {unassignLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Unassigning...
-                    </>
+                    <>Unassigning...</>
                   ) : (
                     <>
                       <X className="w-4 h-4" />

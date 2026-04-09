@@ -12,12 +12,13 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   permissions: Record<string, boolean>;
+  isSuperadmin: boolean;
   refreshPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null, user: null, companyUser: null,
-  loading: true, signOut: async () => {}, permissions: {}, refreshPermissions: async () => {},
+  loading: true, signOut: async () => {}, permissions: {}, isSuperadmin: false, refreshPermissions: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [companyUser, setCompanyUser] = useState<CompanyUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
 
   async function loadCompanyUser() {
     try {
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Use permissions from the response if available (for superadmin), otherwise derive from roles
         let perms: Record<string, boolean> = {};
+        const isSuperadminUser = !!me.permissions;
         
         if (me.permissions) {
           // Superadmin case - permissions are included directly in the response
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         setPermissions(perms);
+        setIsSuperadmin(isSuperadminUser);
       }
     } catch {
       // user not in tenant
@@ -68,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess) loadCompanyUser();
-      else { setCompanyUser(null); setPermissions({}); }
+      else { setCompanyUser(null); setPermissions({}); setIsSuperadmin(false); }
     });
     return () => listener.subscription.unsubscribe();
   }, []); // eslint-disable-line
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setCompanyUser(null);
     setPermissions({});
+    setIsSuperadmin(false);
   };
 
   const refreshPermissions = async () => {
@@ -86,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, companyUser, loading, signOut, permissions, refreshPermissions }}>
+    <AuthContext.Provider value={{ session, user, companyUser, loading, signOut, permissions, isSuperadmin, refreshPermissions }}>
       {children}
     </AuthContext.Provider>
   );

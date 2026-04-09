@@ -1,21 +1,21 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, Activity, BarChart2, Zap, RefreshCw, Play, Loader2, Database, AlertCircle } from "lucide-react";
+import { Cpu, Activity, BarChart2, Zap, RefreshCw, Play, Database, AlertCircle, Package } from "lucide-react";
 import {
   LineChart, Line, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import { useRealtimeStore } from "@/store/useRealtimeStore";
 import { useRealtimeStats } from "@/hooks/useRealtime";
 import { api } from "@/lib/api";
-import type { DashboardSummary, Machine, MachineStat, MetricKey } from "@/types";
+import type { DashboardSummary, Machine, MachineStat, MetricKey, Module } from "@/types";
 import { METRIC_COLORS, METRIC_UNITS, type DateRange } from "@/types";
 import { relativeTime, getDateRangeFrom } from "@/lib/utils";
 
-const METRICS: MetricKey[] = ["power", "energy", "voltage", "current", "power_factor"];
 const DATE_RANGES: { label: string; value: DateRange }[] = [
   { label: "15m", value: "15m" }, { label: "1h", value: "1h" },
   { label: "24h", value: "24h" }, { label: "7d", value: "7d" },
@@ -27,6 +27,8 @@ function KpiCard({
   title: string; value: number | null; unit: string;
   icon: React.ElementType; color: string; delta?: number;
 }) {
+  const isNotAvailable = unit === "N/A";
+  
   return (
     <motion.div
       layout
@@ -48,7 +50,7 @@ function KpiCard({
         </span>
       </div>
       
-      {value === null ? (
+      {value === null && !isNotAvailable ? (
         <div className="skeleton h-10 w-32 rounded-lg relative z-10" />
       ) : (
         <motion.div
@@ -57,12 +59,18 @@ function KpiCard({
           animate={{ opacity: 1, y: 0 }}
           className="flex items-baseline gap-2 relative z-10"
         >
-          <span className="text-3xl font-extrabold tracking-tight text-foreground">
-            {typeof value === "number" ? value.toFixed(1) : value}
+          <span className={`text-3xl font-extrabold tracking-tight ${
+            isNotAvailable ? "text-muted-foreground" : "text-foreground"
+          }`}>
+            {isNotAvailable ? "N/A" : (typeof value === "number" ? value.toFixed(1) : value)}
           </span>
-          <span className="text-sm font-medium text-muted-foreground mb-1">{unit}</span>
+          {!isNotAvailable && (
+            <span className={`text-sm font-medium mb-1 text-muted-foreground`}>
+              {unit}
+            </span>
+          )}
           
-          {delta !== undefined && (
+          {!isNotAvailable && delta !== undefined && (
             <span className={`text-xs px-2 py-0.5 rounded-full font-bold ml-auto mb-1 ${
               delta >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400"
             }`}>
@@ -105,6 +113,7 @@ export default function DashboardPage() {
   const { companyUser, permissions } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [historicalStats, setHistoricalStats] = useState<MachineStat[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("power");
   const [selectedMachines, setSelectedMachines] = useState<string[]>([]);
@@ -113,29 +122,32 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [simulating, setSimulating] = useState(false);
 
-  const { liveFeed, timeSeries, latestValues } = useRealtimeStore();
-
   const allowedMachineIds = permissions["stats.read_all"]
     ? null
     : companyUser?.machine_assignments?.map((ma) => ma.machine_id) ?? [];
 
+  const { latestValues, liveFeed } = useRealtimeStore();
+  
   useRealtimeStats(companyUser?.company_id ?? null, allowedMachineIds);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [s, m] = await Promise.all([
+        const [s, m, mods] = await Promise.all([
           api.get<DashboardSummary>("/api/v1/dashboard/summary"),
-          api.get<Machine[]>("/api/v1/machines"),
+          api.get<Machine[]>("/api/v1/machines?include=modules"),
+          api.get<Module[]>("/api/v1/modules"),
         ]);
         setSummary(s);
         setMachines(m);
+        setModules(mods.filter(mod => mod.status === 'active'));
         // Default: Select first 2 machines for chart and cards
         setSelectedMachines(m.slice(0, 2).map((x) => x.id));
         // Default: Select first machine for KPI
         setSelectedMachineForKPI(m[0]?.id || "");
 
+        
         // Load historical stats for the selected range
         const since = getDateRangeFrom(dateRange).toISOString();
         const statsArr: MachineStat[] = [];
@@ -157,7 +169,7 @@ export default function DashboardPage() {
       }
     }
     load();
-  }, [dateRange, selectedMetric]); // eslint-disable-line
+  }, [dateRange]); // eslint-disable-line
 
   // Merge historical + realtime timeseries for chart
   const chartData = useMemo(() => {
@@ -271,56 +283,63 @@ export default function DashboardPage() {
             Real-time monitoring for <strong className="text-foreground">{companyUser?.company?.name}</strong>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* KPI Machine Filter */}
-          <div className="relative">
-            <select
-              value={selectedMachineForKPI}
-              onChange={(e) => setSelectedMachineForKPI(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border bg-card/80 backdrop-blur text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/50 shadow-sm transition-all hover:bg-card cursor-pointer"
-            >
-              {machines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.code})
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
+        <button
+          onClick={startSimulation}
+          disabled={simulating}
+          className="btn-primary"
+        >
+          {simulating ? "Simulating..." : "Run Simulator"}
+        </button>
+      </div>
+
+      {/* Machine Selector */}
+      <div className="glass-card p-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Machine Selection</h3>
+            <p className="text-xs text-muted-foreground">Select a machine to view module-specific data</p>
           </div>
-          
-          <button
-            onClick={startSimulation}
-            disabled={simulating}
-            className="btn-primary"
+          <select
+            value={selectedMachineForKPI}
+            onChange={(e) => setSelectedMachineForKPI(e.target.value)}
+            className="px-4 py-2 rounded-lg border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 appearance-none cursor-pointer"
           >
-            {simulating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-            {simulating ? "Simulating…" : "Run Simulator"}
-          </button>
+            {machines.map((machine) => (
+              <option key={machine.id} value={machine.id}>
+                {machine.name} ({machine.code})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {[
-          { key: "power"        as MetricKey, icon: Zap,        color: METRIC_COLORS.power || "#ef4444" },
-          { key: "energy"       as MetricKey, icon: Activity,   color: METRIC_COLORS.energy || "#10b981" },
-          { key: "voltage"      as MetricKey, icon: RefreshCw,  color: METRIC_COLORS.voltage || "#3b82f6" },
-          { key: "current"      as MetricKey, icon: BarChart2,  color: METRIC_COLORS.current || "#f59e0b" },
-          { key: "power_factor" as MetricKey, icon: Cpu,        color: METRIC_COLORS.power_factor || "#8b5cf6" },
-        ].map(({ key, icon, color }, idx) => (
-          <div key={key} className="animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
-            <KpiCard
-              title={key.replace('_', ' ')}
-              value={kpiData?.[key] ?? null}
-              unit={METRIC_UNITS[key]}
-              icon={icon}
-              color={color}
-              delta={Math.random() > 0.5 ? Math.random() * 5 : -Math.random() * 5} // Simulated delta for visual effect
-            />
-          </div>
-        ))}
+      {/* KPI Cards - Module-based */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {modules.map((module, idx) => {
+          const selectedMachine = machines.find(m => m.id === selectedMachineForKPI);
+          const hasModuleAccess = selectedMachine?.modules?.some(m => m.id === module.id) || selectedMachine?.module_ids?.includes(module.id);
+          
+          // Get latest value from summary data for the selected machine
+          const machineStats = summary?.latest_stats?.filter(ls => ls.machine_id === selectedMachineForKPI) || [];
+          const moduleStat = machineStats.find(stat => stat.metric_key === module.code.toLowerCase());
+          const latestValue = hasModuleAccess ? moduleStat?.metric_value : null;
+          
+          // Show actual data if available, otherwise show fallback for accessible modules
+          const displayValue = hasModuleAccess ? (latestValue !== null && latestValue !== undefined ? latestValue : 0) : null;
+          
+          return (
+            <div key={module.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
+              <KpiCard
+                title={module.name}
+                value={displayValue}
+                unit={hasModuleAccess ? module.unit : "N/A"}
+                icon={Package}
+                color={hasModuleAccess ? METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280" : "#9ca3af"}
+                delta={hasModuleAccess && latestValue !== undefined && Math.random() > 0.5 ? Math.random() * 5 : -Math.random() * 5} // Simulated delta for visual effect
+              />
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -331,33 +350,37 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-foreground">Performance Trends</h2>
               
               <div className="flex flex-wrap items-center gap-2">
-                {/* Metric Segmented Control */}
+                {/* Module Metric Segmented Control */}
                 <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
-                  {METRICS.slice(0, 3).map((mk) => (
+                  {modules.slice(0, 3).map((module) => (
                     <button
-                      key={mk}
-                      onClick={() => setSelectedMetric(mk)}
+                      key={module.id}
+                      onClick={() => setSelectedMetric(module.code.toLowerCase() as MetricKey)}
                       className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all capitalize ${
-                        selectedMetric === mk
+                        selectedMetric === module.code.toLowerCase()
                           ? "bg-card shadow-sm text-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-card/50"
                       }`}
                     >
-                      {mk}
+                      {module.name}
                     </button>
                   ))}
                   <div className="relative">
                     <select
-                      value={METRICS.includes(selectedMetric) && !METRICS.slice(0, 3).includes(selectedMetric) ? selectedMetric : ""}
+                      value={modules.some(m => m.code.toLowerCase() === selectedMetric) ? selectedMetric : ""}
                       onChange={(e) => setSelectedMetric(e.target.value as MetricKey)}
                       className={`appearance-none pl-4 pr-8 py-1.5 rounded-lg text-xs font-bold transition-all capitalize cursor-pointer focus:outline-none ${
-                        METRICS.includes(selectedMetric) && !METRICS.slice(0, 3).includes(selectedMetric)
+                        modules.some(m => m.code.toLowerCase() === selectedMetric)
                           ? "bg-card shadow-sm text-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-card/50 bg-transparent"
                       }`}
                     >
                       <option value="" disabled>More...</option>
-                      {METRICS.slice(3).map(mk => <option key={mk} value={mk}>{mk}</option>)}
+                      {modules.slice(3).map(module => (
+                        <option key={module.id} value={module.code.toLowerCase()}>
+                          {module.name}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -419,10 +442,7 @@ export default function DashboardPage() {
             <div className="w-full h-[350px]">
               {loading ? (
                 <div className="w-full h-full flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-4 text-brand-500">
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                    <span className="text-sm font-medium animate-pulse">Loading analytics...</span>
-                  </div>
+                  <EnergyPulseLoader text="Loading analytics..." />
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center flex-col text-muted-foreground">
