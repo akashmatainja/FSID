@@ -291,7 +291,7 @@ export default function MachineDetailPage() {
                     <Package className="w-6 h-6 text-muted-foreground/50" />
                   </div>
                   <p className="text-sm text-muted-foreground">No monitoring modules assigned</p>
-                  <p className="text-xs text-muted-foreground mt-1">This machine doesn't have any monitoring modules configured</p>
+                  <p className="text-xs text-muted-foreground mt-1">This machine doesn&apos;t have any monitoring modules configured</p>
                 </div>
               )}
             </div>
