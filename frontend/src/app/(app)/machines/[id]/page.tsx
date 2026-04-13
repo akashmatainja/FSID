@@ -354,7 +354,7 @@ export default function MachineDetailPage() {
                   </span>
                 </h3>
                 <p className="text-sm font-medium text-muted-foreground mt-4">
-                  This machine doesn't have any monitoring modules assigned yet.
+                  This machine doesn&apos;t have any monitoring modules assigned yet.
                 </p>
               </div>
               {canManageAssignments && (
