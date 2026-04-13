@@ -86,6 +86,7 @@ func JWTAuth(jwtSecret string) fiber.Handler {
 				"roles.write":         true,
 				"users.read":          true,
 				"users.write":         true,
+				"stats.read":          true,
 				"stats.read_all":      true,
 				"stats.read_assigned": true,
 				"stats.write":         true,

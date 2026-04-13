@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Save, X, MapPin, Building2, Phone, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import type { Branch } from "@/types";
@@ -157,7 +158,7 @@ export default function EditBranchPage() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
                   required
                 />
               </div>
@@ -180,17 +181,15 @@ export default function EditBranchPage() {
               <label className="block text-sm font-medium text-foreground mb-2">
                 Status
               </label>
-              <select
+              <CustomSelect
                 value={formData.status}
-                onChange={(e) => handleInputChange("status", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => handleInputChange("status", v)}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                  { value: "maintenance", label: "Maintenance" },
+                ]}
+              />
             </div>
           </div>
 
@@ -209,7 +208,7 @@ export default function EditBranchPage() {
                 type="text"
                 value={formData.address}
                 onChange={(e) => handleInputChange("address", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
               />
             </div>
             
@@ -222,7 +221,7 @@ export default function EditBranchPage() {
                   type="text"
                   value={formData.city}
                   onChange={(e) => handleInputChange("city", e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
                 />
               </div>
               
@@ -234,7 +233,7 @@ export default function EditBranchPage() {
                   type="text"
                   value={formData.state}
                   onChange={(e) => handleInputChange("state", e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
                 />
               </div>
             </div>
@@ -247,7 +246,7 @@ export default function EditBranchPage() {
                 type="text"
                 value={formData.pincode}
                 onChange={(e) => handleInputChange("pincode", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
               />
             </div>
           </div>
@@ -268,7 +267,7 @@ export default function EditBranchPage() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
                 />
               </div>
               
@@ -280,7 +279,7 @@ export default function EditBranchPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
                 />
               </div>
             </div>

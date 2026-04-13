@@ -33,18 +33,11 @@ func GetDashboardSummary(c *fiber.Ctx) error {
 		// Regular users see only their company's stats
 		statsQuery = database.DB.Model(&models.MachineStat{}).Where("company_id = ?", auth.CompanyID)
 
-		// Check if user has restricted stats access
-		if !auth.Permissions["stats.read_all"] && !auth.Permissions["stats.read_assigned"] {
+		// Check if user has stats access
+		if !auth.Permissions["stats.read"] {
 			// No stats access - return empty
 			statsQuery = statsQuery.Where("1=0")
-		} else if auth.Permissions["stats.read_assigned"] && !auth.Permissions["stats.read_all"] {
-			// Only assigned machines
-			statsQuery = statsQuery.Where(
-				"machine_id IN (SELECT machine_id FROM machine_assignments WHERE user_id = ?)",
-				auth.CompanyUser.ID,
-			)
 		}
-		// If stats.read_all is true, no additional filtering needed
 	}
 	statsQuery.Count(&totalStats)
 
@@ -79,16 +72,11 @@ func GetDashboardSummary(c *fiber.Ctx) error {
 		`
 		args = []interface{}{auth.CompanyID}
 
-		// Check if user has restricted stats access
-		if !auth.Permissions["stats.read_all"] && !auth.Permissions["stats.read_assigned"] {
+		// Check if user has stats access
+		if !auth.Permissions["stats.read"] {
 			// No stats access - return empty
 			latestSQL += " AND 1=0"
-		} else if auth.Permissions["stats.read_assigned"] && !auth.Permissions["stats.read_all"] {
-			// Only assigned machines
-			latestSQL += " AND ms.machine_id IN (SELECT machine_id FROM machine_assignments WHERE user_id = ?)"
-			args = append(args, auth.CompanyUser.ID)
 		}
-		// If stats.read_all is true, no additional filtering needed
 	}
 	latestSQL += " ORDER BY ms.machine_id, ms.metric_key, ms.ts DESC"
 

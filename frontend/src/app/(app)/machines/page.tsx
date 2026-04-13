@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Machine, Company, Branch, Subdivision, Module } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 const STATUS_CLASSES = {
@@ -24,20 +25,18 @@ export default function MachinesPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Machine | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ 
-    name: "", 
-    code: "", 
-    location: "", 
-    status: "active", 
+  const [form, setForm] = useState({
+    name: "",
+    code: "",
+    location: "",
+    status: "active",
     company_id: "",
     branch_id: "",
-    module_ids: [] as string[],
     equipment_type: "",
     rated_power: "",
     voltage_rating: "",
@@ -71,11 +70,9 @@ export default function MachinesPage() {
     try {
       const machinesData = await api.get<Machine[]>("/api/v1/machines");
       const branchesData = await api.get<Branch[]>("/api/v1/branches");
-      const modulesData = await api.get<Module[]>("/api/v1/modules");
-      
+
       setMachines(machinesData);
       setBranches(branchesData);
-      setModules(modulesData);
       
       if (isSuperadmin) {
         const companiesData = await api.get<Company[]>("/api/v1/companies");
@@ -90,14 +87,13 @@ export default function MachinesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ 
-      name: "", 
-      code: "", 
-      location: "", 
-      status: "active", 
+    setForm({
+      name: "",
+      code: "",
+      location: "",
+      status: "active",
       company_id: "",
       branch_id: "",
-      module_ids: [],
       equipment_type: "",
       rated_power: "",
       voltage_rating: "",
@@ -122,14 +118,13 @@ export default function MachinesPage() {
 
   function openEdit(m: Machine) {
     setEditing(m);
-    setForm({ 
-      name: m.name, 
-      code: m.code, 
-      location: m.location, 
-      status: m.status, 
+    setForm({
+      name: m.name,
+      code: m.code,
+      location: m.location,
+      status: m.status,
       company_id: m.company_id,
       branch_id: m.branch_id || "",
-      module_ids: m.modules?.map(mod => mod.id) || [],
       equipment_type: m.equipment_type || "",
       rated_power: m.rated_power?.toString() || "",
       voltage_rating: m.voltage_rating || "",
@@ -275,7 +270,7 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
           className="w-full max-w-md pl-11 pr-4 py-2.5 rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 shadow-sm transition-all" />
       </div>
 
-      {/* Table */}
+      {/* List */}
       <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
           <EnergyPulseLoader text="Loading machines..." />
@@ -288,83 +283,87 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
             <p className="text-sm text-muted-foreground">Try adjusting your search query or add new machines.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap">
-              <thead>
-                <tr className="border-b border-border/50 bg-muted/20">
-                  {["Machine", "Code", "Location", ...(isSuperadmin ? ["Company"] : []), "Status", ""].map((h) => (
-                    <th key={h} className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {paginatedMachines.map((m, i) => (
-                  <tr key={m.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => router.push(`/machines/${m.id}`)}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 group-hover:scale-105 transition-transform">
-                          <Cpu className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                        </div>
-                        <span className="text-sm font-bold text-foreground">{m.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-muted text-muted-foreground border border-border/50">
-                        {m.code}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                        <MapPin className="w-4 h-4" /> {m.location}
-                      </div>
-                    </td>
-                    {isSuperadmin && (
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center border border-brand-100 dark:border-brand-800/50">
-                            <Building2 className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-foreground leading-tight">
-                              {m.company?.name || 'Unknown'}
-                            </p>
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                              @{m.company?.slug || 'unknown'}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                    )}
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_CLASSES[m.status]}`}>
+          <div className="flex flex-col gap-4 p-6">
+            {paginatedMachines.map((m, index) => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => router.push(`/machines/${m.id}`)}
+                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300 cursor-pointer"
+              >
+                {/* Info Section */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
+                    <Cpu className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
+                        {m.name}
+                      </h3>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border shrink-0 ${STATUS_CLASSES[m.status]}`}
+                      >
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                           m.status === 'active' ? 'bg-emerald-500' :
                           m.status === 'maintenance' ? 'bg-amber-500' : 'bg-slate-500'
                         }`}></span>
                         {m.status.toUpperCase()}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => router.push(`/machines/${m.id}`)} className="w-8 h-8 rounded-lg hover:bg-background border border-transparent hover:border-border shadow-sm flex items-center justify-center transition-all text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400" title="View details">
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                        {canWrite && (<>
-                          <button onClick={() => openEdit(m)} className="w-8 h-8 rounded-lg hover:bg-background border border-transparent hover:border-border shadow-sm flex items-center justify-center transition-all text-muted-foreground hover:text-foreground" title="Edit machine">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(m.id)} className="w-8 h-8 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/30 flex items-center justify-center transition-all text-muted-foreground hover:text-red-600 dark:hover:text-red-400" title="Delete machine">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>)}
+                    </div>
+                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
+                      <span className="font-mono">#{m.code}</span>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {m.location}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Company Section */}
+                {isSuperadmin && m.company && (
+                  <div className="flex flex-col px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Company</span>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-brand-500" />
+                      <span className="text-sm font-bold text-foreground truncate max-w-[150px]">{m.company.name}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    onClick={() => router.push(`/machines/${m.id}`)}
+                    className="p-2 rounded-lg bg-brand-500/10 text-brand-600 hover:bg-brand-500/20 border border-transparent hover:border-brand-500/20 transition-all"
+                    title="View details"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {canWrite && (
+                    <>
+                      <button 
+                        onClick={() => openEdit(m)}
+                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
+                        title="Edit machine"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(m.id)}
+                        className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
+                        title="Delete machine"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
         
@@ -452,122 +451,39 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                     <label className="block text-sm font-bold text-foreground mb-1.5">
                       Company <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                      <Building2 className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                      <select
-                        value={form.company_id}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, company_id: e.target.value, branch_id: "" }));
-                          if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
-                        }}
-                        className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.company_id 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="" disabled>Select a company</option>
-                        {companies.map((company) => (
-                          <option key={company.id} value={company.id}>
-                            {company.name} (@{company.slug})
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </div>
-                    </div>
+                    <CustomSelect
+                      value={form.company_id}
+                      onChange={(v) => {
+                        setForm((f) => ({ ...f, company_id: v, branch_id: "" }));
+                        if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
+                      }}
+                      error={!!fieldErrors.company_id}
+                      iconLeft={<Building2 className={`w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                      placeholder="Select a company"
+                      options={companies.map((c) => ({ value: c.id, label: `${c.name} (@${c.slug})` }))}
+                    />
                     {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
                   </div>
                 )}
                 
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Branch {editing ? "" : <span className="text-red-500">*</span>}</label>
-                  <div className="relative">
-                    <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                    <select
-                      value={form.branch_id}
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, branch_id: e.target.value }));
-                        if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
-                      }}
-                      className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                        fieldErrors.branch_id 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`}
-                    >
-                      <option value="" disabled>
-                        {form.company_id ? "Select a branch" : "Select a company first"}
-                      </option>
-                      {branches
-                        .filter(branch => !form.company_id || branch.company_id === form.company_id)
-                        .map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name} ({branch.city}, {branch.state})
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
+                  <CustomSelect
+                    value={form.branch_id}
+                    onChange={(v) => {
+                      setForm((f) => ({ ...f, branch_id: v }));
+                      if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
+                    }}
+                    error={!!fieldErrors.branch_id}
+                    iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                    placeholder={form.company_id ? "Select a branch" : "Select a company first"}
+                    options={branches
+                      .filter(b => !form.company_id || b.company_id === form.company_id)
+                      .map((b) => ({ value: b.id, label: `${b.name} (${b.city}, ${b.state})` }))}
+                  />
                   {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
                 </div>
 
-                {/* Module Selection */}
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Monitoring Modules (Optional)</label>
-                  <div className="overflow-x-auto pb-2">
-                    <div className="flex gap-3 min-w-max">
-                      {modules.length === 0 ? (
-                        <div className="w-full border border-border/60 rounded-xl p-6 bg-card/50 text-center">
-                          <p className="text-sm text-muted-foreground">No modules available</p>
-                        </div>
-                      ) : (
-                        modules.map((module) => (
-                          <label
-                            key={module.id}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border cursor-pointer transition-all min-w-[120px] ${
-                              form.module_ids.includes(module.id)
-                                ? 'border-brand-500 bg-brand-500/10 shadow-sm shadow-brand-500/20'
-                                : 'border-border/60 bg-card/50 hover:border-brand-500/50 hover:bg-brand-500/5'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={form.module_ids.includes(module.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setForm((f) => ({ ...f, module_ids: [...f.module_ids, module.id] }));
-                                } else {
-                                  setForm((f) => ({ ...f, module_ids: f.module_ids.filter(id => id !== module.id) }));
-                                }
-                              }}
-                              className="sr-only"
-                            />
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              form.module_ids.includes(module.id)
-                                ? 'bg-brand-500 text-white'
-                                : 'bg-muted/50 text-muted-foreground'
-                            }`}>
-                              <Package className="w-5 h-5" />
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs font-bold text-foreground">{module.name}</p>
-                              <p className="text-xs text-muted-foreground">{module.unit}</p>
-                            </div>
-                            {form.module_ids.includes(module.id) && (
-                              <div className="w-2 h-2 bg-brand-500 rounded-full"></div>
-                            )}
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">Select which monitoring modules this machine uses. Multiple modules can be selected.</p>
-                </div>
-                
                 {/* Energy Monitoring Fields */}
                 <div className="border-t border-border/50 pt-4">
                   <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
@@ -578,28 +494,25 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Machine Type <span className="text-red-500">*</span></label>
-                      <select
+                      <CustomSelect
                         value={form.equipment_type}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, equipment_type: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, equipment_type: v }));
                           if (fieldErrors.equipment_type) setFieldErrors({...fieldErrors, equipment_type: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.equipment_type 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="" disabled>Select machine type</option>
-                        <option value="motor">Motor</option>
-                        <option value="pump">Pump</option>
-                        <option value="compressor">Compressor</option>
-                        <option value="hvac">HVAC</option>
-                        <option value="lighting">Lighting</option>
-                        <option value="production">Production Machine</option>
-                        <option value="conveyor">Conveyor</option>
-                        <option value="other">Other</option>
-                      </select>
+                        error={!!fieldErrors.equipment_type}
+                        placeholder="Select machine type"
+                        options={[
+                          { value: "motor", label: "Motor" },
+                          { value: "pump", label: "Pump" },
+                          { value: "compressor", label: "Compressor" },
+                          { value: "hvac", label: "HVAC" },
+                          { value: "lighting", label: "Lighting" },
+                          { value: "production", label: "Production Machine" },
+                          { value: "conveyor", label: "Conveyor" },
+                          { value: "other", label: "Other" },
+                        ]}
+                      />
                       {fieldErrors.equipment_type && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.equipment_type}</p>}
                     </div>
                     
@@ -626,25 +539,22 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                     
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Voltage Rating</label>
-                      <select
+                      <CustomSelect
                         value={form.voltage_rating}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, voltage_rating: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, voltage_rating: v }));
                           if (fieldErrors.voltage_rating) setFieldErrors({...fieldErrors, voltage_rating: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.voltage_rating 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="" disabled>Select voltage rating</option>
-                        <option value="230V">230V (Single Phase)</option>
-                        <option value="415V">415V (Three Phase)</option>
-                        <option value="110V">110V</option>
-                        <option value="480V">480V</option>
-                        <option value="custom">Custom</option>
-                      </select>
+                        error={!!fieldErrors.voltage_rating}
+                        placeholder="Select voltage rating"
+                        options={[
+                          { value: "230V", label: "230V (Single Phase)" },
+                          { value: "415V", label: "415V (Three Phase)" },
+                          { value: "110V", label: "110V" },
+                          { value: "480V", label: "480V" },
+                          { value: "custom", label: "Custom" },
+                        ]}
+                      />
                       {fieldErrors.voltage_rating && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.voltage_rating}</p>}
                     </div>
                     
@@ -751,24 +661,21 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                     
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Maintenance Schedule</label>
-                      <select
+                      <CustomSelect
                         value={form.maintenance_schedule}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, maintenance_schedule: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, maintenance_schedule: v }));
                           if (fieldErrors.maintenance_schedule) setFieldErrors({...fieldErrors, maintenance_schedule: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.maintenance_schedule 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">Select schedule</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="quarterly">Quarterly</option>
-                        <option value="yearly">Yearly</option>
-                        <option value="as-needed">As Needed</option>
-                      </select>
+                        error={!!fieldErrors.maintenance_schedule}
+                        placeholder="Select schedule"
+                        options={[
+                          { value: "monthly", label: "Monthly" },
+                          { value: "quarterly", label: "Quarterly" },
+                          { value: "yearly", label: "Yearly" },
+                          { value: "as-needed", label: "As Needed" },
+                        ]}
+                      />
                     </div>
                   </div>
                 </div>
@@ -783,62 +690,53 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Phase</label>
-                      <select
+                      <CustomSelect
                         value={form.phase}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, phase: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, phase: v }));
                           if (fieldErrors.phase) setFieldErrors({...fieldErrors, phase: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.phase 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">Select phase</option>
-                        <option value="single">Single Phase</option>
-                        <option value="three">Three Phase</option>
-                      </select>
+                        error={!!fieldErrors.phase}
+                        placeholder="Select phase"
+                        options={[
+                          { value: "single", label: "Single Phase" },
+                          { value: "three", label: "Three Phase" },
+                        ]}
+                      />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Critical Equipment</label>
-                      <select
+                      <CustomSelect
                         value={form.critical_equipment}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, critical_equipment: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, critical_equipment: v }));
                           if (fieldErrors.critical_equipment) setFieldErrors({...fieldErrors, critical_equipment: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.critical_equipment 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">Select priority</option>
-                        <option value="yes">Yes - High Priority</option>
-                        <option value="no">No - Normal Priority</option>
-                      </select>
+                        error={!!fieldErrors.critical_equipment}
+                        placeholder="Select priority"
+                        options={[
+                          { value: "yes", label: "Yes - High Priority" },
+                          { value: "no", label: "No - Normal Priority" },
+                        ]}
+                      />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Sub-Unit Level Monitoring</label>
-                      <select
+                      <CustomSelect
                         value={form.sub_unit_monitoring}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, sub_unit_monitoring: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, sub_unit_monitoring: v }));
                           if (fieldErrors.sub_unit_monitoring) setFieldErrors({...fieldErrors, sub_unit_monitoring: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.sub_unit_monitoring 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">Select option</option>
-                        <option value="yes">Yes - Monitor sub-components</option>
-                        <option value="no">No - Equipment level only</option>
-                      </select>
+                        error={!!fieldErrors.sub_unit_monitoring}
+                        placeholder="Select option"
+                        options={[
+                          { value: "yes", label: "Yes - Monitor sub-components" },
+                          { value: "no", label: "No - Equipment level only" },
+                        ]}
+                      />
                     </div>
                     
                     <div>
@@ -914,60 +812,52 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Solar Compatible</label>
-                      <select
+                      <CustomSelect
                         value={form.solar_compatible}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, solar_compatible: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, solar_compatible: v }));
                           if (fieldErrors.solar_compatible) setFieldErrors({...fieldErrors, solar_compatible: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.solar_compatible 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">Select option</option>
-                        <option value="yes">Yes - Can run on solar</option>
-                        <option value="no">No - Grid only</option>
-                      </select>
+                        error={!!fieldErrors.solar_compatible}
+                        placeholder="Select option"
+                        options={[
+                          { value: "yes", label: "Yes - Can run on solar" },
+                          { value: "no", label: "No - Grid only" },
+                        ]}
+                      />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1.5">Solar Priority</label>
-                      <select
+                      <CustomSelect
                         value={form.solar_priority}
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, solar_priority: e.target.value }));
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, solar_priority: v }));
                           if (fieldErrors.solar_priority) setFieldErrors({...fieldErrors, solar_priority: undefined});
                         }}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.solar_priority 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">Select priority</option>
-                        <option value="high">High Priority</option>
-                        <option value="medium">Medium Priority</option>
-                        <option value="low">Low Priority</option>
-                      </select>
+                        error={!!fieldErrors.solar_priority}
+                        placeholder="Select priority"
+                        options={[
+                          { value: "high", label: "High Priority" },
+                          { value: "medium", label: "Medium Priority" },
+                          { value: "low", label: "Low Priority" },
+                        ]}
+                      />
                     </div>
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Status</label>
-                  <div className="relative">
-                    <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/50 appearance-none cursor-pointer transition-all">
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="maintenance">Maintenance</option>
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
+                  <CustomSelect
+                    value={form.status}
+                    onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                    options={[
+                      { value: "active", label: "Active" },
+                      { value: "inactive", label: "Inactive" },
+                      { value: "maintenance", label: "Maintenance" },
+                    ]}
+                  />
                 </div>
                 
                 </div>

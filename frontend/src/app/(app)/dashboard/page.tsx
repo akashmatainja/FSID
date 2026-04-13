@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { useRealtimeStore } from "@/store/useRealtimeStore";
 import { useRealtimeStats } from "@/hooks/useRealtime";
 import { api } from "@/lib/api";
@@ -113,12 +114,10 @@ export default function DashboardPage() {
   const { companyUser, permissions } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [modules, setModules] = useState<Module[]>([]);
   const [historicalStats, setHistoricalStats] = useState<MachineStat[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey>("power");
-  const [selectedMachines, setSelectedMachines] = useState<string[]>([]);
   const [selectedMachineForKPI, setSelectedMachineForKPI] = useState<string>("");
   const [dateRange, setDateRange] = useState<DateRange>("1h");
+  const [selectedMetrics, setSelectedMetrics] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [simulating, setSimulating] = useState(false);
 
@@ -134,28 +133,47 @@ export default function DashboardPage() {
     async function load() {
       setLoading(true);
       try {
-        const [s, m, mods] = await Promise.all([
+        const [s, m] = await Promise.all([
           api.get<DashboardSummary>("/api/v1/dashboard/summary"),
-          api.get<Machine[]>("/api/v1/machines?include=modules"),
-          api.get<Module[]>("/api/v1/modules"),
+          api.get<Machine[]>("/api/v1/machines"),
         ]);
         setSummary(s);
         setMachines(m);
-        setModules(mods.filter(mod => mod.status === 'active'));
-        // Default: Select first 2 machines for chart and cards
-        setSelectedMachines(m.slice(0, 2).map((x) => x.id));
         // Default: Select first machine for KPI
         setSelectedMachineForKPI(m[0]?.id || "");
 
-        
+        // Load modules for all machines
+        const machinesWithModules = await Promise.all(
+          m.map(async (machine) => {
+            try {
+              const modules = await api.get<Module[]>(`/api/v1/machines/${machine.id}/modules`);
+              return { ...machine, modules };
+            } catch {
+              return { ...machine, modules: [] };
+            }
+          })
+        );
+        setMachines(machinesWithModules);
+
+        // Initialize selected metrics for all modules
+        const initialSelectedMetrics: Record<string, string[]> = {};
+        machinesWithModules.forEach((machine) => {
+          machine.modules?.forEach((module) => {
+            const metricCodes = module.metrics?.map(m => m.code) || [];
+            initialSelectedMetrics[module.id] = metricCodes;
+          });
+        });
+        setSelectedMetrics(initialSelectedMetrics);
+
         // Load historical stats for the selected range
         const since = getDateRangeFrom(dateRange).toISOString();
         const statsArr: MachineStat[] = [];
         await Promise.all(
           m.slice(0, 5).map(async (machine) => {
             try {
+              // Load stats for all module metrics
               const res = await api.get<MachineStat[]>(
-                `/api/v1/machines/${machine.id}/stats?metric_key=${selectedMetric}&since=${since}`
+                `/api/v1/machines/${machine.id}/stats?since=${since}`
               );
               statsArr.push(...(res || []));
             } catch { /* not assigned */ }
@@ -171,30 +189,12 @@ export default function DashboardPage() {
     load();
   }, [dateRange]); // eslint-disable-line
 
-  // Merge historical + realtime timeseries for chart
-  const chartData = useMemo(() => {
-    const merged: Record<string, Record<string, number>> = {};
-
-    // Historical
-    historicalStats
-      .filter((s) => s.metric_key === selectedMetric && selectedMachines.includes(s.machine_id))
-      .forEach((s) => {
-        const bucket = new Date(s.ts).toISOString().slice(0, 16); // minute bucket
-        if (!merged[bucket]) merged[bucket] = {};
-        merged[bucket][s.machine_id] = s.metric_value;
-      });
-
-    const data = Object.entries(merged).map(([ts, values]) => ({ ts, ...values }));
-
-    return data.sort((a, b) => a.ts.localeCompare(b.ts));
-  }, [historicalStats, selectedMetric, selectedMachines]);
-
   async function startSimulation() {
     setSimulating(true);
     try {
       await api.post("/api/v1/dev/simulate?seconds=30&rate=3", {});
       toast.success("Simulation started — watch the charts update live!");
-      
+
       // Reload data after simulation completes to show updated results
       setTimeout(async () => {
         try {
@@ -205,7 +205,20 @@ export default function DashboardPage() {
           ]);
           setSummary(s);
           setMachines(m);
-          
+
+          // Load modules for all machines
+          const machinesWithModules = await Promise.all(
+            m.map(async (machine) => {
+              try {
+                const modules = await api.get<Module[]>(`/api/v1/machines/${machine.id}/modules`);
+                return { ...machine, modules };
+              } catch {
+                return { ...machine, modules: [] };
+              }
+            })
+          );
+          setMachines(machinesWithModules);
+
           // Reload historical stats for the selected range
           const since = getDateRangeFrom(dateRange).toISOString();
           const statsArr: MachineStat[] = [];
@@ -213,21 +226,21 @@ export default function DashboardPage() {
             m.slice(0, 5).map(async (machine) => {
               try {
                 const res = await api.get<MachineStat[]>(
-                  `/api/v1/machines/${machine.id}/stats?metric_key=${selectedMetric}&since=${since}`
+                  `/api/v1/machines/${machine.id}/stats?since=${since}`
                 );
                 statsArr.push(...(res || []));
               } catch { /* not assigned */ }
             })
           );
           setHistoricalStats(statsArr);
-          
+
           toast.success("Data updated successfully!");
         } catch (error) {
           toast.error("Failed to refresh data");
         } finally {
           setLoading(false);
         }
-      }, 32000); // Wait 32 seconds (30s simulation + 2s buffer)
+      }, 32000);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Simulation failed");
     } finally {
@@ -235,23 +248,21 @@ export default function DashboardPage() {
     }
   }
 
-  const machineMap = Object.fromEntries(machines.map((m) => [m.id, m]));
-
   const kpiData = useMemo(() => {
     if (!summary?.latest_stats?.length) return null;
     const latestByMetric: Partial<Record<MetricKey, number>> = {};
-    
+
     // Filter stats by selected machine for KPI (if one is selected)
-    const statsToUse = selectedMachineForKPI 
+    const statsToUse = selectedMachineForKPI
       ? summary.latest_stats.filter(ls => ls.machine_id === selectedMachineForKPI)
       : summary.latest_stats;
-    
+
     statsToUse.forEach((ls) => {
       if (!latestByMetric[ls.metric_key as MetricKey]) {
         latestByMetric[ls.metric_key as MetricKey] = ls.metric_value;
       }
     });
-    
+
     // Override with live realtime values for selected KPI machine
     if (selectedMachineForKPI && latestValues[selectedMachineForKPI]) {
       Object.entries(latestValues[selectedMachineForKPI]).forEach(([mk, v]) => {
@@ -265,9 +276,40 @@ export default function DashboardPage() {
         });
       });
     }
-    
+
     return latestByMetric;
   }, [summary, latestValues, selectedMachineForKPI]);
+
+  const machineMap = Object.fromEntries(machines.map((m) => [m.id, m]));
+
+  // Compute chart data for all modules of selected machine
+  const moduleChartDataMap = useMemo(() => {
+    const selectedMachine = machines.find(m => m.id === selectedMachineForKPI);
+    const assignedModules = selectedMachine?.modules || [];
+    const dataMap: Record<string, any[]> = {};
+
+    assignedModules.forEach((module) => {
+      const merged: Record<string, Record<string, number>> = {};
+
+      // Collect all metrics for this module
+      module.metrics?.forEach((metric) => {
+        const metricKey = metric.code.toLowerCase();
+        historicalStats
+          .filter((s) => s.metric_key === metricKey && s.machine_id === selectedMachineForKPI)
+          .forEach((s) => {
+            const bucket = new Date(s.ts).toISOString().slice(0, 16);
+            if (!merged[bucket]) merged[bucket] = {};
+            merged[bucket][metric.code] = s.metric_value;
+          });
+      });
+
+      dataMap[module.id] = Object.entries(merged)
+        .map(([ts, values]) => ({ ts, ...values }))
+        .sort((a, b) => a.ts.localeCompare(b.ts));
+    });
+
+    return dataMap;
+  }, [historicalStats, machines, selectedMachineForKPI]);
 
   return (
     <div className="space-y-8 pb-8 animate-fade-in">
@@ -293,300 +335,252 @@ export default function DashboardPage() {
       </div>
 
       {/* Machine Selector */}
-      <div className="glass-card p-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h3 className="text-sm font-bold text-foreground">Machine Selection</h3>
-            <p className="text-xs text-muted-foreground">Select a machine to view module-specific data</p>
+      <div className="relative overflow-visible rounded-2xl bg-gradient-to-br from-brand-500/10 via-card to-card border-2 border-brand-500/30 shadow-lg shadow-brand-500/10">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-brand-500/20 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-purple-500/20 blur-3xl rounded-full pointer-events-none" />
+        <div className="relative p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-brand-500/20 border border-brand-500/30 flex items-center justify-center">
+                <Cpu className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-foreground">Machine Selection</h3>
+                <p className="text-xs font-medium text-muted-foreground">Select a machine to view module-specific data</p>
+              </div>
+            </div>
+            <CustomSelect
+              value={selectedMachineForKPI}
+              onChange={setSelectedMachineForKPI}
+              options={machines.map((m) => ({ value: m.id, label: `${m.name} (${m.code})` }))}
+              placeholder="Select a machine"
+              className="min-w-[220px]"
+            />
           </div>
-          <select
-            value={selectedMachineForKPI}
-            onChange={(e) => setSelectedMachineForKPI(e.target.value)}
-            className="px-4 py-2 rounded-lg border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 appearance-none cursor-pointer"
-          >
-            {machines.map((machine) => (
-              <option key={machine.id} value={machine.id}>
-                {machine.name} ({machine.code})
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
-      {/* KPI Cards - Module-based */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {modules.map((module, idx) => {
-          const selectedMachine = machines.find(m => m.id === selectedMachineForKPI);
-          const hasModuleAccess = selectedMachine?.modules?.some(m => m.id === module.id) || selectedMachine?.module_ids?.includes(module.id);
-          
-          // Get latest value from summary data for the selected machine
-          const machineStats = summary?.latest_stats?.filter(ls => ls.machine_id === selectedMachineForKPI) || [];
-          const moduleStat = machineStats.find(stat => stat.metric_key === module.code.toLowerCase());
-          const latestValue = hasModuleAccess ? moduleStat?.metric_value : null;
-          
-          // Show actual data if available, otherwise show fallback for accessible modules
-          const displayValue = hasModuleAccess ? (latestValue !== null && latestValue !== undefined ? latestValue : 0) : null;
-          
+      {/* KPI Cards - Grouped by Module */}
+      {(() => {
+        const selectedMachine = machines.find(m => m.id === selectedMachineForKPI);
+        const assignedModules = selectedMachine?.modules || [];
+
+        if (assignedModules.length === 0) {
           return (
-            <div key={module.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
-              <KpiCard
-                title={module.name}
-                value={displayValue}
-                unit={hasModuleAccess ? module.unit : "N/A"}
-                icon={Package}
-                color={hasModuleAccess ? METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280" : "#9ca3af"}
-                delta={hasModuleAccess && latestValue !== undefined && Math.random() > 0.5 ? Math.random() * 5 : -Math.random() * 5} // Simulated delta for visual effect
-              />
+            <div className="glass-card p-10 text-center border-dashed border-2 border-border">
+              <Package className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-foreground mb-2">No Modules Assigned</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                This machine has no monitoring modules assigned. Assign modules to this machine to view KPI cards and charts.
+              </p>
             </div>
           );
-        })}
-      </div>
+        }
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main Chart Section */}
-        <div className="lg:col-span-3 space-y-6">
-          <div className="glass-card p-5 sm:p-6 flex flex-col">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-lg font-bold text-foreground">Performance Trends</h2>
-              
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Module Metric Segmented Control */}
-                <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
-                  {modules.slice(0, 3).map((module) => (
-                    <button
-                      key={module.id}
-                      onClick={() => setSelectedMetric(module.code.toLowerCase() as MetricKey)}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all capitalize ${
-                        selectedMetric === module.code.toLowerCase()
-                          ? "bg-card shadow-sm text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                      }`}
-                    >
-                      {module.name}
-                    </button>
-                  ))}
-                  <div className="relative">
-                    <select
-                      value={modules.some(m => m.code.toLowerCase() === selectedMetric) ? selectedMetric : ""}
-                      onChange={(e) => setSelectedMetric(e.target.value as MetricKey)}
-                      className={`appearance-none pl-4 pr-8 py-1.5 rounded-lg text-xs font-bold transition-all capitalize cursor-pointer focus:outline-none ${
-                        modules.some(m => m.code.toLowerCase() === selectedMetric)
-                          ? "bg-card shadow-sm text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-card/50 bg-transparent"
-                      }`}
-                    >
-                      <option value="" disabled>More...</option>
-                      {modules.slice(3).map(module => (
-                        <option key={module.id} value={module.code.toLowerCase()}>
-                          {module.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Date Range Control */}
-                <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
-                  {DATE_RANGES.map((dr) => (
-                    <button
-                      key={dr.value}
-                      onClick={() => setDateRange(dr.value)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        dateRange === dr.value
-                          ? "bg-brand-500 text-white shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                      }`}
-                    >
-                      {dr.label}
-                    </button>
-                  ))}
-                </div>
+        return assignedModules.map((module: Module) => (
+          <div key={module.id} className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280"}15`, border: `1px solid ${METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280"}30` }}>
+                <Package className="w-4 h-4" style={{ color: METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280" }} />
               </div>
+              <h2 className="text-lg font-bold text-foreground">{module.name} Monitoring</h2>
             </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {module.metrics?.map((metric, idx) => {
+                const machineStats = summary?.latest_stats?.filter(ls => ls.machine_id === selectedMachineForKPI) || [];
+                const metricStat = machineStats.find(stat => stat.metric_key === metric.code.toLowerCase());
+                const latestValue = metricStat?.metric_value;
+                const displayValue = latestValue !== null && latestValue !== undefined ? latestValue : null;
 
-            {/* Machine toggles */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {machines.map((m) => {
-                const isSelected = selectedMachines.includes(m.id);
-                // Assign a color from our palette based on index
-                const colorIndex = machines.findIndex(x => x.id === m.id) % 5;
-                const color = Object.values(METRIC_COLORS)[colorIndex];
-                
                 return (
-                  <button
-                    key={m.id}
-                    onClick={() =>
-                      setSelectedMachines((prev) =>
-                        prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id]
-                      )
-                    }
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                      isSelected
-                        ? "bg-card border-border shadow-sm text-foreground"
-                        : "border-transparent text-muted-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    <span 
-                      className={`w-2.5 h-2.5 rounded-full transition-all ${isSelected ? 'scale-100' : 'scale-50 opacity-50'}`}
-                      style={{ backgroundColor: color }}
+                  <div key={metric.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms` }}>
+                    <KpiCard
+                      title={metric.name}
+                      value={displayValue}
+                      unit={metric.unit}
+                      icon={Package}
+                      color={METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280"}
+                      delta={latestValue !== undefined && Math.random() > 0.5 ? Math.random() * 5 : -Math.random() * 5}
                     />
-                    {m.name}
-                  </button>
+                  </div>
                 );
-              })}
-            </div>
-
-            <div className="w-full h-[350px]">
-              {loading ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <EnergyPulseLoader text="Loading analytics..." />
+              }) || (
+                <div className="col-span-full text-center py-4 text-muted-foreground text-sm">
+                  No metrics configured for this module
                 </div>
-              ) : chartData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center flex-col text-muted-foreground">
-                  <BarChart2 className="w-12 h-12 mb-3 opacity-20" />
-                  <p className="font-medium">No data available for this range</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgb(var(--border) / 0.5)" />
-                    <XAxis
-                      dataKey="ts"
-                      tickFormatter={(v) => v.slice(11, 16)}
-                      tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
-                      axisLine={false}
-                      tickLine={false}
-                      dy={10}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={60}
-                      tickFormatter={(v) => typeof v === 'number' ? v.toFixed(0) : v}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "rgb(var(--card))",
-                        border: "1px solid rgb(var(--border))",
-                        borderRadius: "1rem",
-                        boxShadow: "0 10px 40px rgba(0, 0, 0, 0.08)",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        padding: "12px 16px"
-                      }}
-                      itemStyle={{ padding: "4px 0" }}
-                      labelStyle={{ color: "rgb(var(--muted-foreground))", marginBottom: "8px", fontSize: "12px" }}
-                      formatter={(v: number, name: string) => {
-                        const machineName = machineMap[name]?.name || name;
-                        return [`${v.toFixed(2)} ${METRIC_UNITS[selectedMetric]}`, machineName];
-                      }}
-                      labelFormatter={(label) => {
-                        const date = new Date(label);
-                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                      }}
-                    />
-                    {selectedMachines.map((mid) => {
-                      const colorIndex = machines.findIndex(x => x.id === mid) % 5;
-                      const color = Object.values(METRIC_COLORS)[colorIndex];
-                      return (
-                        <Line
-                          key={mid}
-                          type="monotone"
-                          dataKey={mid}
-                          name={mid}
-                          stroke={color}
-                          strokeWidth={3}
-                          dot={false}
-                          activeDot={{ r: 6, strokeWidth: 0, fill: color }}
-                          isAnimationActive={true}
-                          animationDuration={1500}
-                        />
-                      );
-                    })}
-                  </LineChart>
-                </ResponsiveContainer>
               )}
             </div>
           </div>
+        ));
+      })()}
 
-          {/* Machine sparkline cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {loading
-              ? Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="glass-card p-5 h-36 skeleton" />
-                ))
-              : machines
-                  .filter(m => selectedMachines.includes(m.id)) // Only show selected machines
-                  .slice(0, 2) // Limit to 2 for layout
-                  .map((m) => {
-                  const status = m.status;
-                  
-                  // Get latest data from summary for current value
-                  const machineStats = summary?.latest_stats?.filter(s => s.machine_id === m.id) || [];
-                  const latest = machineStats.find(s => s.metric_key === selectedMetric)?.metric_value;
-                  
-                  // Get historical data for sparkline
-                  const sparkData = historicalStats
-                    .filter(s => s.machine_id === m.id && s.metric_key === selectedMetric)
-                    .map(s => ({ ts: s.ts, value: s.metric_value }))
-                    .slice(-30); // Last 30 points
-                  
-                  const colorIndex = machines.findIndex(x => x.id === m.id) % 5;
-                  const color = Object.values(METRIC_COLORS)[colorIndex];
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Module Charts Section */}
+        <div className="lg:col-span-3 space-y-6">
+          {(() => {
+            const selectedMachine = machines.find(m => m.id === selectedMachineForKPI);
+            const assignedModules = selectedMachine?.modules || [];
 
-                  return (
-                    <motion.div
-                      key={m.id}
-                      layout
-                      className="glass-card p-5 group hover:-translate-y-1 transition-transform duration-300"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-muted">
-                            <Cpu className="w-5 h-5 text-muted-foreground group-hover:text-brand-500 transition-colors" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-foreground">{m.name}</p>
-                            <p className="text-xs font-medium text-muted-foreground">{m.code}</p>
-                          </div>
-                        </div>
-                        <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-bold ${
-                          status === "active" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-                          status === "maintenance" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
-                          "bg-red-500/10 text-red-600 dark:text-red-400"
-                        }`}>
-                          {status}
-                        </span>
+            if (assignedModules.length === 0) {
+              return (
+                <div className="glass-card p-10 text-center border-dashed border-2 border-border">
+                  <BarChart2 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                  <h3 className="text-lg font-bold text-foreground mb-2">No Modules Assigned</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    This machine has no monitoring modules assigned. Assign modules to this machine to view analytics charts.
+                  </p>
+                </div>
+              );
+            }
+
+            return assignedModules.map((module: Module) => {
+              const moduleColor = METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280";
+              const moduleChartData = moduleChartDataMap[module.id] || [];
+              const moduleSelectedMetrics = selectedMetrics[module.id] || module.metrics?.map(m => m.code) || [];
+
+              return (
+                <div key={module.id} className="glass-card p-5 sm:p-6 flex flex-col">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${moduleColor}15`, border: `1px solid ${moduleColor}30` }}>
+                        <Package className="w-5 h-5" style={{ color: moduleColor }} />
                       </div>
-                      
-                      <div className="flex items-end justify-between mb-2">
-                        <div>
-                          {latest !== undefined ? (
-                            <motion.p
-                              key={latest}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="text-2xl font-extrabold text-foreground tracking-tight"
-                            >
-                              {latest.toFixed(1)} <span className="text-sm font-medium text-muted-foreground">{METRIC_UNITS[selectedMetric]}</span>
-                            </motion.p>
-                          ) : (
-                            <p className="text-2xl font-extrabold text-muted-foreground">--</p>
-                          )}
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5">{selectedMetric}</p>
-                        </div>
-                        <div className="w-24 h-12">
-                           <Sparkline data={sparkData} color={color} />
-                        </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">{module.name} Monitoring</h2>
+                        <p className="text-xs font-medium text-muted-foreground">{module.code}</p>
                       </div>
-                    </motion.div>
-                  );
-                })}
-          </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
+                        {DATE_RANGES.map((dr) => (
+                          <button
+                            key={dr.value}
+                            onClick={() => setDateRange(dr.value)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              dateRange === dr.value
+                                ? "bg-brand-500 text-white shadow-sm"
+                                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                            }`}
+                          >
+                            {dr.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Metric toggles */}
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {module.metrics?.map((metric, idx) => {
+                      const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+                      const color = colors[idx % colors.length];
+                      const isSelected = moduleSelectedMetrics.includes(metric.code);
+
+                      return (
+                        <button
+                          key={metric.id}
+                          onClick={() => {
+                            setSelectedMetrics(prev => ({
+                              ...prev,
+                              [module.id]: isSelected
+                                ? prev[module.id]?.filter(m => m !== metric.code) || []
+                                : [...(prev[module.id] || []), metric.code]
+                            }));
+                          }}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                            isSelected
+                              ? "bg-card border-border shadow-sm text-foreground"
+                              : "border-transparent text-muted-foreground hover:bg-muted/50"
+                          }`}
+                        >
+                          <span
+                            className={`w-2.5 h-2.5 rounded-full transition-all ${isSelected ? 'scale-100' : 'scale-50 opacity-50'}`}
+                            style={{ backgroundColor: color }}
+                          />
+                          {metric.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="w-full h-[350px]">
+                    {loading ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <EnergyPulseLoader text="Loading analytics..." />
+                      </div>
+                    ) : moduleChartData.length === 0 ? (
+                      <div className="w-full h-full flex items-center justify-center flex-col text-muted-foreground">
+                        <BarChart2 className="w-12 h-12 mb-3 opacity-20" />
+                        <p className="font-medium">No data available for this module</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={moduleChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgb(var(--border) / 0.5)" />
+                          <XAxis
+                            dataKey="ts"
+                            tickFormatter={(v) => v.slice(11, 16)}
+                            tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
+                            axisLine={false}
+                            tickLine={false}
+                            dy={10}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={60}
+                            tickFormatter={(v) => typeof v === 'number' ? v.toFixed(0) : v}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: "rgb(var(--card))",
+                              border: "1px solid rgb(var(--border))",
+                              borderRadius: "1rem",
+                              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.08)",
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              padding: "12px 16px"
+                            }}
+                            itemStyle={{ padding: "4px 0" }}
+                            labelStyle={{ color: "rgb(var(--muted-foreground))", marginBottom: "8px", fontSize: "12px" }}
+                            formatter={(v: number, name: string) => {
+                              const metric = module.metrics?.find(m => m.code === name);
+                              return [`${v.toFixed(2)} ${metric?.unit || ""}`, metric?.name || name];
+                            }}
+                            labelFormatter={(label) => {
+                              const date = new Date(label);
+                              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            }}
+                          />
+                          <Legend />
+                          {module.metrics?.filter(metric => moduleSelectedMetrics.includes(metric.code)).map((metric, idx) => {
+                            const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+                            const color = colors[idx % colors.length];
+                            return (
+                              <Line
+                                key={metric.id}
+                                type="monotone"
+                                dataKey={metric.code}
+                                name={metric.code}
+                                stroke={color}
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={{ r: 5, strokeWidth: 0, fill: color }}
+                                isAnimationActive={true}
+                                animationDuration={1500}
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {/* Sidebar Column: System Status + Live Feed */}

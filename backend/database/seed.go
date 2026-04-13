@@ -115,79 +115,15 @@ func UpdateExistingRolesWithSubdivisionPermissions() {
 	}
 }
 
-// SeedModules seeds the initial modules into the database
+// SeedModules - predefined modules are seeded via SQL migration; this is a no-op.
 func SeedModules() {
-	modules := []models.Module{
-		{
-			Name:        "Power",
-			Code:        "POWER",
-			Description: "Real-time power consumption monitoring",
-			Unit:        "kW",
-			Status:      "active",
-		},
-		{
-			Name:        "Energy",
-			Code:        "ENERGY",
-			Description: "Cumulative energy consumption tracking",
-			Unit:        "kWh",
-			Status:      "active",
-		},
-		{
-			Name:        "Voltage",
-			Code:        "VOLTAGE",
-			Description: "Voltage level monitoring",
-			Unit:        "V",
-			Status:      "active",
-		},
-		{
-			Name:        "Current",
-			Code:        "CURRENT",
-			Description: "Current flow measurement",
-			Unit:        "A",
-			Status:      "active",
-		},
-		{
-			Name:        "Power Factor",
-			Code:        "POWER_FACTOR",
-			Description: "Power factor efficiency measurement",
-			Unit:        "PF",
-			Status:      "active",
-		},
-		{
-			Name:        "Frequency",
-			Code:        "FREQUENCY",
-			Description: "Electrical frequency monitoring",
-			Unit:        "Hz",
-			Status:      "active",
-		},
-		{
-			Name:        "Temperature",
-			Code:        "TEMPERATURE",
-			Description: "Equipment temperature monitoring",
-			Unit:        "°C",
-			Status:      "active",
-		},
-		{
-			Name:        "Vibration",
-			Code:        "VIBRATION",
-			Description: "Mechanical vibration monitoring",
-			Unit:        "mm/s",
-			Status:      "active",
-		},
+	var count int64
+	DB.Model(&models.Module{}).Count(&count)
+	if count > 0 {
+		log.Printf("Modules already seeded (%d found), skipping", count)
+		return
 	}
-
-	for _, module := range modules {
-		var existingModule models.Module
-		if err := DB.Where("code = ?", module.Code).First(&existingModule).Error; err == gorm.ErrRecordNotFound {
-			if err := DB.Create(&module).Error; err != nil {
-				log.Printf("Failed to create module %s: %v", module.Code, err)
-			} else {
-				log.Printf("Created module: %s (%s)", module.Name, module.Code)
-			}
-		} else {
-			log.Printf("Module %s already exists, skipping", module.Code)
-		}
-	}
+	log.Println("No modules found - run the SQL migration to seed predefined modules")
 }
 
 // SeedData seeds initial data into the database

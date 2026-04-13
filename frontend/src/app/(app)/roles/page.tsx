@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Role, Permission } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 export default function RolesPage() {
@@ -164,97 +165,87 @@ export default function RolesPage() {
             <p className="text-sm font-medium text-muted-foreground">Try adjusting your search terms or create a new role.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
+          <div className="flex flex-col gap-4 p-6">
             {paginatedRoles.map((r, i) => (
               <motion.div 
                 key={r.id} 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
+                initial={{ opacity: 0, x: -20 }} 
+                animate={{ opacity: 1, x: 0 }} 
                 transition={{ delay: i * 0.05 }}
-                className="glass-card flex flex-col h-full group"
+                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300"
               >
-                <div className="p-6 flex-1 flex flex-col">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 group-hover:scale-105 transition-transform duration-300">
-                        <Shield className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-foreground group-hover:text-brand-600 transition-colors">
-                          {r.name}
-                        </h3>
-                        <p className="text-xs font-medium text-muted-foreground line-clamp-1 mt-0.5">
-                          {r.description || "No description provided"}
-                        </p>
-                      </div>
-                    </div>
+                {/* Info Section */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
+                    <Shield className="w-6 h-6 text-brand-600 dark:text-brand-400" />
                   </div>
-
-                  {/* Company Badge (Superadmin) */}
-                  {isSuperadmin && r.company && (
-                    <div className="flex items-center gap-2 mb-4 p-2 rounded-xl bg-muted/50 border border-border/50">
-                      <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">{r.company.name}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">@{r.company.slug}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Permissions Summary */}
-                  <div className="mt-2 flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Permissions</span>
-                      <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full text-foreground">
-                        {r.role_permissions?.length || 0}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
+                        {r.name}
+                      </h3>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border/50 shrink-0">
+                        {r.role_permissions?.length || 0} permissions
                       </span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {r.role_permissions?.slice(0, 5).map((rp) => {
-                        const permKey = rp.permission?.key || "?";
-                        // Color code based on permission type
-                        let colorClass = "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
-                        if (permKey === "superadmin") colorClass = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800";
-                        else if (permKey.includes("write")) colorClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800";
-                        else if (permKey.includes("read")) colorClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
-                        
-                        return (
-                          <span 
-                            key={rp.permission_id} 
-                            className={`text-[10px] px-2 py-1 rounded-md font-mono font-medium border ${colorClass}`}
-                            title={rp.permission?.description}
-                          >
-                            {permKey}
-                          </span>
-                        );
-                      })}
-                      {(r.role_permissions?.length || 0) > 5 && (
-                        <span className="text-[10px] px-2 py-1 rounded-md font-bold bg-muted text-muted-foreground border border-border/50">
-                          +{(r.role_permissions?.length || 0) - 5} more
+                      {isSuperadmin && r.company && (
+                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 shrink-0">
+                          <Building2 className="w-3 h-3 mr-1" />
+                          {r.company.name}
                         </span>
                       )}
                     </div>
+                    <p className="text-xs font-medium text-muted-foreground truncate max-w-xl">
+                      {r.description || "No description provided"}
+                    </p>
                   </div>
                 </div>
 
-                {/* Actions Footer */}
+                {/* Permissions Section */}
+                <div className="flex flex-wrap gap-1.5 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto max-w-[300px]">
+                  {r.role_permissions?.slice(0, 3).map((rp) => {
+                    const permKey = rp.permission?.key || "?";
+                    // Color code based on permission type
+                    let colorClass = "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+                    if (permKey === "superadmin") colorClass = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800";
+                    else if (permKey.includes("write")) colorClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+                    else if (permKey.includes("read")) colorClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+                    
+                    return (
+                      <span 
+                        key={rp.permission_id} 
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-medium border ${colorClass} truncate max-w-[120px]`}
+                        title={rp.permission?.description}
+                      >
+                        {permKey}
+                      </span>
+                    );
+                  })}
+                  {(r.role_permissions?.length || 0) > 3 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-muted text-muted-foreground border border-border/50">
+                      +{(r.role_permissions?.length || 0) - 3} more
+                    </span>
+                  )}
+                  {(r.role_permissions?.length || 0) === 0 && (
+                    <span className="text-[10px] text-muted-foreground italic">No permissions assigned</span>
+                  )}
+                </div>
+
+                {/* Actions */}
                 {canWrite && (
-                  <div className="px-6 py-3 border-t border-border/50 bg-muted/20 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => openEdit(r)} 
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-background border border-transparent hover:border-border shadow-sm text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
+                      title="Edit role"
                     >
-                      <Pencil className="w-3.5 h-3.5" /> Edit
+                      <Pencil className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => handleDelete(r.id)} 
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/30 text-xs font-bold text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-all"
+                      className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
+                      title="Delete role"
                     >
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 )}

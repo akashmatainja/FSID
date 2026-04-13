@@ -46,15 +46,25 @@ export interface Subdivision {
   machines?: Machine[];
 }
 
+export interface ModuleMetric {
+  id: string;
+  module_id: string;
+  name: string;
+  code: string;
+  unit: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Module {
   id: string;
   name: string;
   code: string;
   description: string;
-  unit: string;
-  status: "active" | "inactive";
+  is_active: boolean;
   created_at: string;
   updated_at: string;
+  metrics?: ModuleMetric[];
   machines?: Machine[];
 }
 

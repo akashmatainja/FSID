@@ -72,6 +72,9 @@ func init() {
 	api.Get("/machines/:id/users", handlers.GetMachineUsers)
 	api.Post("/machines/:id/users", middleware.RequirePermission("machines.write"), handlers.AssignUserToMachine)
 	api.Delete("/machines/:id/users/:user_id", middleware.RequirePermission("machines.write"), handlers.UnassignUserFromMachine)
+	api.Get("/machines/:id/modules", handlers.GetMachineModules)
+	api.Post("/machines/:id/modules", middleware.RequirePermission("machines.write"), handlers.AssignModuleToMachine)
+	api.Delete("/machines/:id/modules/:module_id", middleware.RequirePermission("machines.write"), handlers.UnassignModuleFromMachine)
 
 	// Users
 	api.Get("/users/me", handlers.GetMe)
@@ -102,12 +105,15 @@ func init() {
 	api.Put("/subdivisions/:id", middleware.RequirePermission("subdivisions.write"), handlers.UpdateSubdivision)
 	api.Delete("/subdivisions/:id", middleware.RequirePermission("subdivisions.write"), handlers.DeleteSubdivision)
 
-	// Modules (superadmin only)
+	// Modules
+	api.Get("/modules/active", handlers.ListActiveModules)
 	api.Get("/modules", handlers.ListModules)
 	api.Get("/modules/:id", handlers.GetModule)
-	api.Post("/modules", handlers.CreateModule)
-	api.Put("/modules/:id", handlers.UpdateModule)
-	api.Delete("/modules/:id", handlers.DeleteModule)
+	api.Put("/modules/:id/toggle", handlers.ToggleModule)
+	api.Get("/modules/:id/metrics", handlers.ListModuleMetrics)
+	api.Post("/modules/:id/metrics", handlers.CreateModuleMetric)
+	api.Put("/modules/:id/metrics/:metric_id", handlers.UpdateModuleMetric)
+	api.Delete("/modules/:id/metrics/:metric_id", handlers.DeleteModuleMetric)
 
 	// Assignments
 	api.Post("/assignments/roles", middleware.RequirePermission("roles.write"), handlers.AssignRole)

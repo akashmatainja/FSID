@@ -62,14 +62,22 @@ func Simulate(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "no machines found"})
 	}
 
-	// Create a map to store machine modules for efficient lookup
-	machineModules := make(map[uuid.UUID][]models.Module)
+	// Create a map to store machine module metrics for efficient lookup
+	machineModuleMetrics := make(map[uuid.UUID][]models.ModuleMetric)
 
-	// Load modules for each machine
+	// Load modules and their metrics for each machine
 	for _, machineID := range machineIDs {
 		var machine models.Machine
-		if err := database.DB.Preload("Modules").First(&machine, "id = ?", machineID).Error; err == nil {
-			machineModules[machineID] = machine.Modules
+		if err := database.DB.Preload("Modules.Metrics").First(&machine, "id = ?", machineID).Error; err == nil {
+			// Collect all metrics from all assigned modules
+			var allMetrics []models.ModuleMetric
+			for _, module := range machine.Modules {
+				// Only include metrics from active modules
+				if module.IsActive {
+					allMetrics = append(allMetrics, module.Metrics...)
+				}
+			}
+			machineModuleMetrics[machineID] = allMetrics
 		}
 	}
 
@@ -84,16 +92,6 @@ func Simulate(c *fiber.Ctx) error {
 		"temperature":  25.0,   // °C
 		"vibration":    5.0,    // mm/s
 	}
-	units := map[string]string{
-		"power":        "kW",
-		"energy":       "kWh",
-		"voltage":      "V",
-		"current":      "A",
-		"power_factor": "",
-		"frequency":    "Hz",
-		"temperature":  "°C",
-		"vibration":    "mm/s",
-	}
 
 	total := seconds * rate
 	interval := time.Duration(1000/rate) * time.Millisecond
@@ -102,18 +100,18 @@ func Simulate(c *fiber.Ctx) error {
 	for i := 0; i < total; i++ {
 		machineID := machineIDs[rand.Intn(len(machineIDs))]
 
-		// Get modules assigned to this machine
-		modules := machineModules[machineID]
-		if len(modules) == 0 {
-			continue // Skip machines with no modules
+		// Get metrics from modules assigned to this machine
+		metrics := machineModuleMetrics[machineID]
+		if len(metrics) == 0 {
+			continue // Skip machines with no assigned module metrics
 		}
 
-		// Select a random module from this machine's assigned modules
-		module := modules[rand.Intn(len(modules))]
-		metric := strings.ToLower(module.Code)
+		// Select a random metric from this machine's assigned module metrics
+		metric := metrics[rand.Intn(len(metrics))]
+		metricKey := strings.ToLower(metric.Code)
 
 		// Get base value for this metric, use default if not found
-		base, ok := baseValues[metric]
+		base, ok := baseValues[metricKey]
 		if !ok {
 			base = 100.0 // Default fallback value
 		}
@@ -127,9 +125,9 @@ func Simulate(c *fiber.Ctx) error {
 			CompanyID:   auth.CompanyID,
 			MachineID:   machineID,
 			Ts:          time.Now(),
-			MetricKey:   metric,
+			MetricKey:   metricKey,
 			MetricValue: value,
-			Meta:        map[string]any{"unit": units[metric], "simulated": true, "module_id": module.ID},
+			Meta:        map[string]any{"unit": metric.Unit, "simulated": true, "module_id": metric.ModuleID, "metric_id": metric.ID},
 		}
 		database.DB.Create(&stat)
 		inserted++

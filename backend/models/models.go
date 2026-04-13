@@ -142,13 +142,24 @@ type Module struct {
 	Name        string    `json:"name" gorm:"uniqueIndex"`
 	Code        string    `json:"code" gorm:"uniqueIndex"`
 	Description string    `json:"description"`
-	Unit        string    `json:"unit"` // kW, kWh, V, A, etc.
-	Status      string    `json:"status" gorm:"default:active"`
+	IsActive    bool      `json:"is_active" gorm:"default:true"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	Machines []Machine `json:"machines,omitempty" gorm:"many2many:machine_modules"`
+	Metrics  []ModuleMetric `json:"metrics,omitempty" gorm:"foreignKey:ModuleID"`
+	Machines []Machine      `json:"machines,omitempty" gorm:"many2many:machine_modules"`
+}
+
+type ModuleMetric struct {
+	ID       uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ModuleID uuid.UUID `json:"module_id" gorm:"type:uuid;not null"`
+	Name     string    `json:"name"`
+	Code     string    `json:"code"`
+	Unit     string    `json:"unit"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Machine struct {
@@ -252,20 +263,20 @@ type UpdateSubdivisionRequest struct {
 }
 
 // Module Request Models
-type CreateModuleRequest struct {
-	Name        string `json:"name" validate:"required"`
-	Code        string `json:"code" validate:"required"`
-	Description string `json:"description"`
-	Unit        string `json:"unit" validate:"required"`
-	Status      string `json:"status"`
+type ToggleModuleRequest struct {
+	IsActive bool `json:"is_active"`
 }
 
-type UpdateModuleRequest struct {
-	Name        *string `json:"name"`
-	Code        *string `json:"code"`
-	Description *string `json:"description"`
-	Unit        *string `json:"unit"`
-	Status      *string `json:"status"`
+type CreateModuleMetricRequest struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+	Unit string `json:"unit"`
+}
+
+type UpdateModuleMetricRequest struct {
+	Name *string `json:"name"`
+	Code *string `json:"code"`
+	Unit *string `json:"unit"`
 }
 
 type MachineStat struct {

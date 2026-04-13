@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Branch, Company } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 const STATUS_CLASSES = {
@@ -212,7 +213,7 @@ export default function BranchesPage() {
           className="w-full max-w-md pl-11 pr-4 py-2.5 rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 shadow-sm transition-all" />
       </div>
 
-      {/* Table */}
+      {/* List */}
       <div className="glass-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         {loading ? (
           <EnergyPulseLoader text="Loading branches..." />
@@ -225,103 +226,99 @@ export default function BranchesPage() {
             <p className="text-sm text-muted-foreground">Try adjusting your search query or add a new branch.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap">
-              <thead>
-                <tr className="border-b border-border/50 bg-muted/20">
-                  {["Branch", "Code", "Location", "Contact", ...(isSuperadmin ? ["Company"] : []), "Status", ""].map((h) => (
-                    <th key={h} className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {paginatedBranches.map((b, i) => (
-                  <tr key={b.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => router.push(`/branches/${b.id}`)}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 group-hover:scale-105 transition-transform">
-                          <MapPin className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                        </div>
-                        <button
-  onClick={() => router.push(`/branches/${b.id}`)}
-  className="text-sm font-bold text-foreground hover:text-brand-600 transition-colors"
->
-  {b.name}
-</button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-muted text-muted-foreground border border-border/50">
-                        {b.code}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">
-                        <div className="font-medium text-foreground">{b.city}, {b.state}</div>
-                        <div className="text-muted-foreground">{b.address}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm space-y-1">
-                        {b.phone && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Phone className="w-3 h-3" /> {b.phone}
-                          </div>
-                        )}
-                        {b.email && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Mail className="w-3 h-3" /> {b.email}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    {isSuperadmin && (
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center border border-brand-100 dark:border-brand-800/50">
-                            <Building2 className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-foreground leading-tight">
-                              {b.company?.name || 'Unknown'}
-                            </p>
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                              @{b.company?.slug || 'unknown'}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                    )}
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_CLASSES[b.status]}`}>
+          <div className="flex flex-col gap-4 p-6">
+            {paginatedBranches.map((b, index) => (
+              <motion.div
+                key={b.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => router.push(`/branches/${b.id}`)}
+                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300 cursor-pointer"
+              >
+                {/* Info Section */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
+                    <MapPin className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
+                        {b.name}
+                      </h3>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border shrink-0 ${STATUS_CLASSES[b.status]}`}
+                      >
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                           b.status === 'active' ? 'bg-emerald-500' :
                           b.status === 'maintenance' ? 'bg-amber-500' : 'bg-slate-500'
                         }`}></span>
                         {b.status.toUpperCase()}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => router.push(`/branches/${b.id}`)} className="w-8 h-8 rounded-lg hover:bg-background border border-transparent hover:border-border shadow-sm flex items-center justify-center transition-all text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400" title="View details">
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                        {canWrite && (<>
-                          <button onClick={() => openEdit(b)} className="w-8 h-8 rounded-lg hover:bg-background border border-transparent hover:border-border shadow-sm flex items-center justify-center transition-all text-muted-foreground hover:text-foreground" title="Edit branch">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(b.id)} className="w-8 h-8 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/30 flex items-center justify-center transition-all text-muted-foreground hover:text-red-600 dark:hover:text-red-400" title="Delete branch">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>)}
+                      {isSuperadmin && b.company && (
+                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 border-brand-200 dark:border-brand-500/20 shrink-0">
+                          <Building2 className="w-3 h-3 mr-1" />
+                          {b.company.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
+                      <span className="font-mono">#{b.code}</span>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {b.city}, {b.state}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Section */}
+                <div className="flex flex-col gap-1.5 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
+                  {b.phone && (
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5 text-brand-500" /> {b.phone}
+                    </div>
+                  )}
+                  {b.email && (
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <Mail className="w-3.5 h-3.5 text-emerald-500" /> {b.email}
+                    </div>
+                  )}
+                  {!b.phone && !b.email && (
+                    <span className="text-xs text-muted-foreground/50 italic">No contact info</span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    onClick={() => router.push(`/branches/${b.id}`)}
+                    className="p-2 rounded-lg bg-brand-500/10 text-brand-600 hover:bg-brand-500/20 border border-transparent hover:border-brand-500/20 transition-all"
+                    title="View details"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {canWrite && (
+                    <>
+                      <button 
+                        onClick={() => openEdit(b)}
+                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
+                        title="Edit branch"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(b.id)}
+                        className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
+                        title="Delete branch"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
 
@@ -458,48 +455,32 @@ export default function BranchesPage() {
                       <label className="block text-sm font-bold text-foreground mb-1.5">
                         Company <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <Building2 className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                        <select
-                          value={form.company_id}
-                          onChange={(e) => {
-                            setForm((f) => ({ ...f, company_id: e.target.value }));
-                            if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
-                          }}
-                          className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                            fieldErrors.company_id 
-                              ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                              : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                          }`}
-                        >
-                          <option value="" disabled>Select a company</option>
-                          {companies.map((company) => (
-                            <option key={company.id} value={company.id}>
-                              {company.name} (@{company.slug})
-                            </option>
-                          ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                        </div>
-                      </div>
+                      <CustomSelect
+                        value={form.company_id}
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, company_id: v }));
+                          if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
+                        }}
+                        error={!!fieldErrors.company_id}
+                        iconLeft={<Building2 className={`w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                        placeholder="Select a company"
+                        options={companies.map((c) => ({ value: c.id, label: `${c.name} (@${c.slug})` }))}
+                      />
                       {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
                     </div>
                   )}
                   
                   <div>
                     <label className="block text-sm font-bold text-foreground mb-1.5">Status</label>
-                    <div className="relative">
-                      <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                        className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/50 appearance-none cursor-pointer transition-all">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="maintenance">Maintenance</option>
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </div>
-                    </div>
+                    <CustomSelect
+                      value={form.status}
+                      onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                      options={[
+                        { value: "active", label: "Active" },
+                        { value: "inactive", label: "Inactive" },
+                        { value: "maintenance", label: "Maintenance" },
+                      ]}
+                    />
                   </div>
                 </div>
                 

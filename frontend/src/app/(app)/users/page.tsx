@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { CompanyUser, Role, Company, Branch, Subdivision } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 export default function UsersPage() {
@@ -224,106 +225,95 @@ export default function UsersPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
+          <div className="flex flex-col gap-4 p-6">
             {paginatedUsers.map((user, index) => (
               <motion.div
                 key={user.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="glass-card flex flex-col h-full group"
+                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300"
               >
-                <div className="p-6 flex-1">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-sm shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
-                        <span className="text-white font-bold text-lg">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-foreground group-hover:text-brand-600 transition-colors">
-                          {user.name}
-                        </h3>
-                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                          <Mail className="w-3 h-3" />
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
+                {/* Info Section */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
+                    <span className="text-white font-bold text-lg">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
-
-                  <div className="space-y-4">
-                    {/* Status Badge */}
-                    <div>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                        user.status === "active"
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                          : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20"
-                      }`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
+                        {user.name}
+                      </h3>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border shrink-0 ${
+                          user.status === "active"
+                            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20"
+                            : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/20"
+                        }`}
+                      >
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${user.status === "active" ? "bg-emerald-500" : "bg-slate-500"}`}></span>
                         {user.status === "active" ? "ACTIVE" : "SUSPENDED"}
                       </span>
                     </div>
-
-                    {/* Company (for superadmin) */}
-                    {isSuperadmin && user.company && (
-                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/50 border border-border/50">
-                        <div className="w-7 h-7 rounded-lg bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-                          <Building2 className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-foreground leading-none mb-0.5">{user.company.name}</p>
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">@{user.company.slug}</p>
-                        </div>
+                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                        {user.email}
                       </div>
-                    )}
-
-                    {/* Branch */}
-                    {user.branch && (
-                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/50 border border-border/50">
-                        <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                          <MapPin className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-foreground leading-none mb-0.5">{user.branch.name}</p>
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{user.branch.code}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Roles */}
-                    <div>
-                      <div className="flex flex-wrap gap-2">
-                        {user.user_roles?.map((ur) => (
-                          <span
-                            key={ur.role_id}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 border border-brand-100 dark:border-brand-500/20 text-xs font-bold"
-                          >
-                            <Shield className="w-3 h-3" />
-                            {ur.role?.name || "Role"}
-                          </span>
-                        ))}
-                        {(!user.user_roles || user.user_roles.length === 0) && (
-                          <span className="text-xs font-medium text-muted-foreground italic">No roles assigned</span>
-                        )}
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className="px-6 py-4 border-t border-border/50 bg-muted/20 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Calendar className="w-3.5 h-3.5" />
-                    Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {/* Assignment & Roles Section */}
+                <div className="flex flex-col gap-2 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/* Roles */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {user.user_roles?.map((ur) => (
+                        <span
+                          key={ur.role_id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 border border-brand-100 dark:border-brand-500/20 text-[10px] font-bold"
+                        >
+                          <Shield className="w-2.5 h-2.5" />
+                          {ur.role?.name || "Role"}
+                        </span>
+                      ))}
+                      {(!user.user_roles || user.user_roles.length === 0) && (
+                        <span className="text-[10px] font-medium text-muted-foreground italic">No roles</span>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Branch & Company */}
+                  <div className="flex items-center gap-3 text-xs font-medium">
+                    {user.branch && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground bg-card px-2 py-1 rounded-md border border-border/50">
+                        <MapPin className="w-3 h-3 text-purple-500" />
+                        <span className="truncate max-w-[120px]">{user.branch.name}</span>
+                      </div>
+                    )}
+                    {isSuperadmin && user.company && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground bg-card px-2 py-1 rounded-md border border-border/50">
+                        <Building2 className="w-3 h-3 text-brand-500" />
+                        <span className="truncate max-w-[120px]">{user.company.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   {canWrite && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <>
                       <button 
                         onClick={() => openEdit(user)} 
-                        className="w-8 h-8 rounded-lg hover:bg-background border border-transparent hover:border-border shadow-sm flex items-center justify-center transition-all text-muted-foreground hover:text-foreground"
+                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
                         title="Edit user"
                       >
                         <Pencil className="w-4 h-4" />
@@ -331,13 +321,13 @@ export default function UsersPage() {
                       {companyUser?.id !== user.id && (
                         <button 
                           onClick={() => handleDelete(user)}
-                          className="w-8 h-8 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/30 flex items-center justify-center transition-all text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                          className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
                           title="Delete user"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </motion.div>
@@ -417,128 +407,76 @@ export default function UsersPage() {
                 {isSuperadmin && !editing && (
                   <div>
                     <label className="block text-sm font-bold text-foreground mb-1.5">Company <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Building2 className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                      <select 
-                        value={form.company_id} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, company_id: e.target.value }));
-                          if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
-                        }} 
-                        className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.company_id 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="" disabled>Assign to a company</option>
-                        {companies.map((company) => (
-                          <option key={company.id} value={company.id}>
-                            {company.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </div>
-                    </div>
+                    <CustomSelect
+                      value={form.company_id}
+                      onChange={(v) => {
+                        setForm((f) => ({ ...f, company_id: v }));
+                        if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
+                      }}
+                      error={!!fieldErrors.company_id}
+                      iconLeft={<Building2 className={`w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                      placeholder="Assign to a company"
+                      options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                    />
                     {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
                   </div>
                 )}
                 
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Branch Assignment</label>
-                  <div className="relative">
-                    <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                    <select 
-                      value={form.branch_id} 
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, branch_id: e.target.value, subdivision_id: "" }));
-                        if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
-                      }} 
-                      className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                        fieldErrors.branch_id 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`}
-                    >
-                      <option value="">No branch (company-wide access)</option>
-                      {branches
-                        .filter(branch => !isSuperadmin || !form.company_id || branch.company_id === form.company_id)
-                        .map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name} ({branch.code})
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
+                  <CustomSelect
+                    value={form.branch_id}
+                    onChange={(v) => {
+                      setForm((f) => ({ ...f, branch_id: v, subdivision_id: "" }));
+                      if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
+                    }}
+                    error={!!fieldErrors.branch_id}
+                    iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                    options={[
+                      { value: "", label: "No branch (company-wide access)" },
+                      ...branches
+                        .filter(b => !isSuperadmin || !form.company_id || b.company_id === form.company_id)
+                        .map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))
+                    ]}
+                  />
                   {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
                 </div>
 
                 {form.branch_id && (
                   <div>
                     <label className="block text-sm font-bold text-foreground mb-1.5">Subdivision Assignment</label>
-                    <div className="relative">
-                      <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.subdivision_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                      <select 
-                        value={form.subdivision_id} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, subdivision_id: e.target.value }));
-                          if (fieldErrors.subdivision_id) setFieldErrors({...fieldErrors, subdivision_id: undefined});
-                        }} 
-                        className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                          fieldErrors.subdivision_id 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`}
-                      >
-                        <option value="">No subdivision (branch-wide access)</option>
-                        {subdivisions
-                          .filter(subdivision => subdivision.branch_id === form.branch_id)
-                          .map((subdivision) => (
-                            <option key={subdivision.id} value={subdivision.id}>
-                              {subdivision.name} ({subdivision.code})
-                            </option>
-                          ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </div>
-                    </div>
+                    <CustomSelect
+                      value={form.subdivision_id}
+                      onChange={(v) => {
+                        setForm((f) => ({ ...f, subdivision_id: v }));
+                        if (fieldErrors.subdivision_id) setFieldErrors({...fieldErrors, subdivision_id: undefined});
+                      }}
+                      error={!!fieldErrors.subdivision_id}
+                      iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.subdivision_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                      options={[
+                        { value: "", label: "No subdivision (branch-wide access)" },
+                        ...subdivisions
+                          .filter(s => s.branch_id === form.branch_id)
+                          .map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))
+                      ]}
+                    />
                     {fieldErrors.subdivision_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.subdivision_id}</p>}
                   </div>
                 )}
                 
                 <div>
                   <label className="block text-sm font-bold text-foreground mb-1.5">Role Assignment <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <Shield className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.role_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                    <select 
-                      value={form.role_id} 
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, role_id: e.target.value }));
-                        if (fieldErrors.role_id) setFieldErrors({...fieldErrors, role_id: undefined});
-                      }} 
-                      className={`w-full pl-11 pr-10 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                        fieldErrors.role_id 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`}
-                    >
-                      <option value="" disabled>Select a role for this user</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
+                  <CustomSelect
+                    value={form.role_id}
+                    onChange={(v) => {
+                      setForm((f) => ({ ...f, role_id: v }));
+                      if (fieldErrors.role_id) setFieldErrors({...fieldErrors, role_id: undefined});
+                    }}
+                    error={!!fieldErrors.role_id}
+                    iconLeft={<Shield className={`w-4 h-4 ${fieldErrors.role_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                    placeholder="Select a role for this user"
+                    options={roles.map((r) => ({ value: r.id, label: r.name }))}
+                  />
                   {fieldErrors.role_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.role_id}</p>}
                 </div>
                 

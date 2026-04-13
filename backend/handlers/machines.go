@@ -475,7 +475,7 @@ func GetMachineStats(c *fiber.Ctx) error {
 	}
 
 	// For regular users, check if they have access to this machine's stats
-	if !auth.Permissions["superadmin"] && !auth.Permissions["stats.read_all"] {
+	if !auth.Permissions["superadmin"] && !auth.Permissions["stats.read"] {
 		var count int64
 		database.DB.Model(&models.MachineAssignment{}).
 			Where("user_id = ? AND machine_id = ?", auth.CompanyUser.ID, id).
@@ -685,4 +685,130 @@ func UnassignUserFromMachine(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "user unassigned successfully"})
+}
+
+// GET /api/v1/machines/:id/modules
+func GetMachineModules(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	// Check if user has access to this machine
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		query = database.DB.Where("id = ?", id)
+	} else {
+		query = database.DB.Where("id = ? AND company_id = ?", id, auth.CompanyID)
+	}
+
+	if err := query.Preload("Modules.Metrics").First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Only return active modules
+	activeModules := make([]models.Module, 0)
+	for _, mod := range machine.Modules {
+		if mod.IsActive {
+			activeModules = append(activeModules, mod)
+		}
+	}
+
+	return c.JSON(activeModules)
+}
+
+// POST /api/v1/machines/:id/modules
+func AssignModuleToMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	machineID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	var req struct {
+		ModuleID string `json:"module_id" validate:"required"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+
+	moduleID, err := uuid.Parse(req.ModuleID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid module id"})
+	}
+
+	// Check if machine exists and user has access
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		query = database.DB.Where("id = ?", machineID)
+	} else {
+		query = database.DB.Where("id = ? AND company_id = ?", machineID, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Check if module exists and is active
+	var module models.Module
+	if err := database.DB.Where("id = ? AND is_active = ?", moduleID, true).First(&module).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "module not found or inactive"})
+	}
+
+	// Check if already assigned
+	var existingMachineModule models.MachineModule
+	if err := database.DB.Where("machine_id = ? AND module_id = ?", machineID, moduleID).First(&existingMachineModule).Error; err == nil {
+		return c.Status(400).JSON(fiber.Map{"error": "module already assigned to machine"})
+	}
+
+	// Create assignment
+	machineModule := models.MachineModule{
+		MachineID: machineID,
+		ModuleID:  moduleID,
+	}
+	if err := database.DB.Create(&machineModule).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to assign module"})
+	}
+
+	return c.Status(201).JSON(fiber.Map{"message": "module assigned successfully"})
+}
+
+// DELETE /api/v1/machines/:id/modules/:module_id
+func UnassignModuleFromMachine(c *fiber.Ctx) error {
+	auth := middleware.GetAuth(c)
+	machineID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	moduleID, err := uuid.Parse(c.Params("module_id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid module id"})
+	}
+
+	// Check if machine exists and user has access
+	var machine models.Machine
+	var query *gorm.DB
+
+	if auth.Permissions["superadmin"] {
+		query = database.DB.Where("id = ?", machineID)
+	} else {
+		query = database.DB.Where("id = ? AND company_id = ?", machineID, auth.CompanyID)
+	}
+
+	if err := query.First(&machine).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Delete assignment
+	if err := database.DB.Where("machine_id = ? AND module_id = ?", machineID, moduleID).Delete(&models.MachineModule{}).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to unassign module"})
+	}
+
+	return c.JSON(fiber.Map{"message": "module unassigned successfully"})
 }

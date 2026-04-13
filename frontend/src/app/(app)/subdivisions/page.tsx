@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 import type { Subdivision, Branch, Company } from "@/types";
 
@@ -210,75 +211,78 @@ export default function SubdivisionsPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {subdivisions.map((subdivision, index) => (
+        <div className="flex flex-col gap-4">
+          {paginatedSubdivisions.map((subdivision, index) => (
             <motion.div
               key={subdivision.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="glass-card p-6 hover:shadow-lg transition-all duration-300 group"
+              className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-purple-500/30 transition-all duration-300"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20 group-hover:scale-105 transition-transform duration-300">
-                    <GitBranch className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground group-hover:text-purple-600 transition-colors">
+              {/* Info Section */}
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
+                  <GitBranch className="w-6 h-6 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-base sm:text-lg font-bold text-foreground truncate group-hover:text-purple-600 transition-colors">
                       {subdivision.name}
                     </h3>
-                    <p className="text-xs font-mono text-muted-foreground">{subdivision.code}</p>
+                    <span
+                      className={`inline-flex items-center text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
+                        subdivision.status === "active"
+                          ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
+                          : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/30"
+                      }`}
+                    >
+                      {subdivision.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
+                    <span className="font-mono">#{subdivision.code}</span>
+                    {subdivision.description && (
+                      <span className="truncate max-w-[200px] sm:max-w-md hidden sm:inline-block">
+                        • {subdivision.description}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <span
-                  className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border ${
-                    subdivision.status === "active"
-                      ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
-                      : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/30"
-                  }`}
-                >
-                  {subdivision.status}
-                </span>
               </div>
 
-              {subdivision.description && (
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {subdivision.description}
-                </p>
-              )}
-
-              <div className="space-y-3 mb-4">
+              {/* Hierarchy Section */}
+              <div className="flex flex-col gap-1.5 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
                 {subdivision.branch && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{subdivision.branch.name}</span>
-                    <span className="text-xs font-mono text-muted-foreground">({subdivision.branch.code})</span>
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <MapPin className="w-3.5 h-3.5 text-brand-500" />
+                    <span className="truncate max-w-[150px]">{subdivision.branch.name}</span>
                   </div>
                 )}
                 {subdivision.company && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Building2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{subdivision.company.name}</span>
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="truncate max-w-[150px]">{subdivision.company.name}</span>
                   </div>
                 )}
               </div>
 
+              {/* Actions */}
               {canWrite && (
-                <div className="flex gap-2 pt-4 border-t border-border/50">
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => openEditModal(subdivision)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted text-foreground transition-colors"
+                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
+                    title="Edit subdivision"
                   >
                     <Edit2 className="w-4 h-4" />
-                    Edit
                   </button>
                   <button
                     onClick={() => openDeleteConfirm(subdivision.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
+                    className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
+                    title="Delete subdivision"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Delete
                   </button>
                 </div>
               )}
@@ -340,30 +344,20 @@ export default function SubdivisionsPage() {
                     <label className="block text-sm font-bold text-foreground mb-1.5">
                       Company <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <select
-                        value={selectedCompany}
-                        onChange={(e) => {
-                          setSelectedCompany(e.target.value);
-                          setSelectedBranch("");
-                          setForm({ ...form, branch_id: "" });
-                        }}
-                        className="w-full pl-11 pr-10 py-3 rounded-xl border border-border/60 bg-card/50 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 appearance-none cursor-pointer transition-all"
-                      >
-                        <option value="">Select company...</option>
-                        {companies.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="m6 9 6 6 6-6" />
-                        </svg>
-                      </div>
-                    </div>
+                    <CustomSelect
+                      value={selectedCompany}
+                      onChange={(v) => {
+                        setSelectedCompany(v);
+                        setSelectedBranch("");
+                        setForm({ ...form, branch_id: "" });
+                      }}
+                      iconLeft={<Building2 className="w-4 h-4 text-muted-foreground" />}
+                      placeholder="Select company..."
+                      options={[
+                        { value: "", label: "Select company..." },
+                        ...companies.map((c) => ({ value: c.id, label: c.name }))
+                      ]}
+                    />
                   </div>
                 )}
 
@@ -371,32 +365,19 @@ export default function SubdivisionsPage() {
                   <label className="block text-sm font-bold text-foreground mb-1.5">
                     Branch <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />
-                    <select
-                      value={form.branch_id}
-                      onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
-                      className={`w-full pl-11 pr-10 py-3 rounded-xl border bg-card/50 text-sm font-medium text-foreground focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                        fieldErrors.branch_id
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500'
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`}
-                    >
-                      <option value="">Select branch...</option>
-                      {branches
+                  <CustomSelect
+                    value={form.branch_id}
+                    onChange={(v) => setForm({ ...form, branch_id: v })}
+                    error={!!fieldErrors.branch_id}
+                    iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                    placeholder="Select branch..."
+                    options={[
+                      { value: "", label: "Select branch...", disabled: true },
+                      ...branches
                         .filter((b) => !isSuperadmin || !selectedCompany || b.company_id === selectedCompany)
-                        .map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name} ({branch.code})
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
-                    </div>
-                  </div>
+                        .map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))
+                    ]}
+                  />
                   {fieldErrors.branch_id && (
                     <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" /> {fieldErrors.branch_id}

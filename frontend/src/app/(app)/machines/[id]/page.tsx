@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package } from "lucide-react";
+import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package, Trash2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Machine, MachineStat, CompanyUser, Module } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
@@ -27,6 +28,7 @@ export default function MachineDetailPage() {
   const [machine, setMachine] = useState<Machine | null>(null);
   const [stats, setStats] = useState<MachineStat[]>([]);
   const [assignedUsers, setAssignedUsers] = useState<CompanyUser[]>([]);
+  const [assignedModules, setAssignedModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<CompanyUser[]>([]);
@@ -36,19 +38,34 @@ export default function MachineDetailPage() {
   const [userToUnassign, setUserToUnassign] = useState<CompanyUser | null>(null);
   const [unassignLoading, setUnassignLoading] = useState(false);
 
+  // Module assignment state
+  const [showModuleAssignModal, setShowModuleAssignModal] = useState(false);
+  const [availableModules, setAvailableModules] = useState<Module[]>([]);
+  const [selectedModuleId, setSelectedModuleId] = useState("");
+  const [moduleAssignLoading, setModuleAssignLoading] = useState(false);
+  const [showModuleUnassignModal, setShowModuleUnassignModal] = useState(false);
+  const [moduleToUnassign, setModuleToUnassign] = useState<Module | null>(null);
+  const [moduleUnassignLoading, setModuleUnassignLoading] = useState(false);
+
+  // Metrics modal state
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [selectedModuleForMetrics, setSelectedModuleForMetrics] = useState<Module | null>(null);
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
-        const [machineData, statsData, usersData] = await Promise.all([
+        const [machineData, statsData, usersData, modulesData] = await Promise.all([
           api.get<Machine>(`/api/v1/machines/${machineId}`),
           api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats`),
-          api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`)
+          api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`),
+          api.get<Module[]>(`/api/v1/machines/${machineId}/modules`)
         ]);
-        
+
         setMachine(machineData);
         setStats(statsData);
         setAssignedUsers(usersData);
+        setAssignedModules(modulesData);
       } catch (error) {
         console.error("Failed to load machine data:", error);
         toast.error("Failed to load machine data");
@@ -128,6 +145,76 @@ export default function MachineDetailPage() {
   const openAssignModal = () => {
     loadAvailableUsers();
     setShowAssignModal(true);
+  };
+
+  // Module assignment handlers
+  const loadAvailableModules = async () => {
+    try {
+      const modulesData = await api.get<Module[]>("/api/v1/modules/active");
+      const available = modulesData.filter(mod =>
+        !assignedModules.some(assigned => assigned.id === mod.id)
+      );
+      setAvailableModules(available);
+    } catch (error) {
+      console.error("Failed to load modules:", error);
+      toast.error("Failed to load modules");
+    }
+  };
+
+  const handleAssignModule = async () => {
+    if (!selectedModuleId) {
+      toast.error("Please select a module");
+      return;
+    }
+
+    setModuleAssignLoading(true);
+    try {
+      await api.post(`/api/v1/machines/${machineId}/modules`, { module_id: selectedModuleId });
+      toast.success("Module assigned to machine successfully");
+      setShowModuleAssignModal(false);
+      setSelectedModuleId("");
+      const modulesData = await api.get<Module[]>(`/api/v1/machines/${machineId}/modules`);
+      setAssignedModules(modulesData);
+    } catch (error) {
+      console.error("Failed to assign module:", error);
+      toast.error("Failed to assign module to machine");
+    } finally {
+      setModuleAssignLoading(false);
+    }
+  };
+
+  const handleUnassignModule = async (module: Module) => {
+    setModuleToUnassign(module);
+    setShowModuleUnassignModal(true);
+  };
+
+  const confirmUnassignModule = async () => {
+    if (!moduleToUnassign) return;
+
+    setModuleUnassignLoading(true);
+    try {
+      await api.delete(`/api/v1/machines/${machineId}/modules/${moduleToUnassign.id}`);
+      toast.success("Module unassigned successfully");
+      setShowModuleUnassignModal(false);
+      setModuleToUnassign(null);
+      const modulesData = await api.get<Module[]>(`/api/v1/machines/${machineId}/modules`);
+      setAssignedModules(modulesData);
+    } catch (error) {
+      console.error("Failed to unassign module:", error);
+      toast.error("Failed to unassign module");
+    } finally {
+      setModuleUnassignLoading(false);
+    }
+  };
+
+  const openModuleAssignModal = () => {
+    loadAvailableModules();
+    setShowModuleAssignModal(true);
+  };
+
+  const handleViewMetrics = (module: Module) => {
+    setSelectedModuleForMetrics(module);
+    setShowMetricsModal(true);
   };
 
   if (loading) {
@@ -254,47 +341,129 @@ export default function MachineDetailPage() {
           )}
 
           {/* Modules Section */}
-          <div className="mt-8 pt-6 border-t border-border/50">
-            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-              <Package className="w-5 h-5 text-brand-500" />
-              Monitoring Modules
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {machine.modules && machine.modules.length > 0 ? (
-                machine.modules.map((module, idx) => (
-                  <motion.div
-                    key={module.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-background/50 border border-border/50 backdrop-blur-sm"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-                      <Package className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-foreground">{module.name}</p>
-                      <p className="text-xs text-muted-foreground">{module.code} - {module.unit}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      module.status === 'active' 
-                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
-                        : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
-                    }`}>
-                      {module.status}
-                    </span>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="col-span-2 text-center py-8">
-                  <div className="w-12 h-12 bg-muted/50 rounded-xl flex items-center justify-center mx-auto mb-3 border border-border/50">
-                    <Package className="w-6 h-6 text-muted-foreground/50" />
+          <div className="mt-8 pt-8 border-t border-border/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                    <Package className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                   </div>
-                  <p className="text-sm text-muted-foreground">No monitoring modules assigned</p>
-                  <p className="text-xs text-muted-foreground mt-1">This machine doesn&apos;t have any monitoring modules configured</p>
-                </div>
+                  Monitoring Modules
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400 border border-brand-200 dark:border-brand-500/20 ml-2">
+                    {assignedModules.length} Active
+                  </span>
+                </h3>
+                <p className="text-sm font-medium text-muted-foreground mt-4">
+                  This machine doesn't have any monitoring modules assigned yet.
+                </p>
+              </div>
+              {canManageAssignments && (
+                <button
+                  onClick={openModuleAssignModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-md shadow-brand-500/20 hover:shadow-lg hover:shadow-brand-500/30 hover:-translate-y-0.5 transition-all font-bold text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Assign Module
+                </button>
               )}
             </div>
+
+            {assignedModules.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {assignedModules.map((module, idx) => {
+                  const colorConfig: Record<string, { bgGlow: string, iconBg: string, iconBorder: string, text: string, hoverText: string }> = {
+                    energy: { bgGlow: "bg-yellow-500/10 group-hover:bg-yellow-500/20", iconBg: "bg-yellow-500/10", iconBorder: "border-yellow-500/20", text: "text-yellow-600 dark:text-yellow-400", hoverText: "group-hover:text-yellow-600 dark:group-hover:text-yellow-400" },
+                    environmental: { bgGlow: "bg-emerald-500/10 group-hover:bg-emerald-500/20", iconBg: "bg-emerald-500/10", iconBorder: "border-emerald-500/20", text: "text-emerald-600 dark:text-emerald-400", hoverText: "group-hover:text-emerald-600 dark:group-hover:text-emerald-400" },
+                    vibration: { bgGlow: "bg-blue-500/10 group-hover:bg-blue-500/20", iconBg: "bg-blue-500/10", iconBorder: "border-blue-500/20", text: "text-blue-600 dark:text-blue-400", hoverText: "group-hover:text-blue-600 dark:group-hover:text-blue-400" },
+                    prediction: { bgGlow: "bg-purple-500/10 group-hover:bg-purple-500/20", iconBg: "bg-purple-500/10", iconBorder: "border-purple-500/20", text: "text-purple-600 dark:text-purple-400", hoverText: "group-hover:text-purple-600 dark:group-hover:text-purple-400" },
+                    safety: { bgGlow: "bg-red-500/10 group-hover:bg-red-500/20", iconBg: "bg-red-500/10", iconBorder: "border-red-500/20", text: "text-red-600 dark:text-red-400", hoverText: "group-hover:text-red-600 dark:group-hover:text-red-400" },
+                  };
+                  
+                  const defaultColor = { bgGlow: "bg-brand-500/10 group-hover:bg-brand-500/20", iconBg: "bg-brand-500/10", iconBorder: "border-brand-500/20", text: "text-brand-600 dark:text-brand-400", hoverText: "group-hover:text-brand-600 dark:group-hover:text-brand-400" };
+                  const colors = colorConfig[module.code.toLowerCase()] || defaultColor;
+                  
+                  return (
+                    <motion.div
+                      key={module.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className={`relative overflow-hidden flex flex-col p-5 rounded-2xl bg-card border border-border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group`}
+                    >
+                      {/* Decorative background glow */}
+                      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-colors ${colors.bgGlow}`} />
+                      
+                      <div className="flex items-start justify-between mb-4 relative z-10">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-sm group-hover:scale-110 transition-transform duration-300 ${colors.iconBg} ${colors.iconBorder}`}>
+                          <Activity className={`w-6 h-6 ${colors.text}`} />
+                        </div>
+                        {canManageAssignments && (
+                          <button
+                            onClick={() => handleUnassignModule(module)}
+                            className="w-8 h-8 rounded-lg bg-muted/50 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 flex items-center justify-center text-muted-foreground hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                            title="Unassign module"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="relative z-10 flex-1">
+                        <h4 className={`text-lg font-bold text-foreground transition-colors mb-1 ${colors.hoverText}`}>
+                          {module.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-muted text-muted-foreground border border-border/50 uppercase tracking-wider">
+                            {module.code}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            ACTIVE
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground line-clamp-2 mb-4">
+                          {module.description || `Monitoring features for ${module.name.toLowerCase()}.`}
+                        </p>
+                      </div>
+                      
+                      <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between relative z-10">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Metrics Count</span>
+                          <span className={`text-sm font-extrabold ${colors.text}`}>
+                            {module.metrics?.length || 0}
+                          </span>
+                        </div>
+                        <button 
+                          onClick={() => handleViewMetrics(module)}
+                          className="text-xs font-bold text-muted-foreground hover:text-foreground flex items-center gap-1 group/btn"
+                        >
+                          View Metrics <ChevronRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="glass-card rounded-2xl p-10 text-center border-dashed border-2 border-border">
+                <div className="w-20 h-20 bg-brand-500/5 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-brand-500/10 shadow-inner">
+                  <Package className="w-10 h-10 text-muted-foreground/40" />
+                </div>
+                <h4 className="text-lg font-bold text-foreground mb-2">No Modules Assigned</h4>
+                <p className="text-sm font-medium text-muted-foreground max-w-sm mx-auto mb-6">
+                  Enhance this machine&apos;s capabilities by assigning monitoring modules. They will appear here.
+                </p>
+                {canManageAssignments && (
+                  <button
+                    onClick={openModuleAssignModal}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-background hover:bg-muted border border-border rounded-xl font-bold text-sm text-foreground transition-all hover:shadow-md"
+                  >
+                    <Plus className="w-4 h-4 text-brand-500" />
+                    Browse Available Modules
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -566,18 +735,12 @@ export default function MachineDetailPage() {
             <div className="p-6">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-foreground mb-2">Select User</label>
-                <select
+                <CustomSelect
                   value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="">Choose a user...</option>
-                  {availableUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedUserId}
+                  placeholder="Choose a user..."
+                  options={availableUsers.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` }))}
+                />
               </div>
               
               <div className="flex gap-3">
@@ -661,6 +824,183 @@ export default function MachineDetailPage() {
                       Unassign User
                     </>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Module Modal */}
+      {showModuleAssignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Assign Module to Machine</h3>
+                <button
+                  onClick={() => setShowModuleAssignModal(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-foreground mb-2">Select Module</label>
+                <CustomSelect
+                  value={selectedModuleId}
+                  onChange={setSelectedModuleId}
+                  placeholder="Choose a module..."
+                  options={availableModules.map((m) => ({ value: m.id, label: `${m.name} (${m.code})` }))}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowModuleAssignModal(false)}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignModule}
+                  disabled={moduleAssignLoading || !selectedModuleId}
+                  className="flex-1 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {moduleAssignLoading ? (
+                    <>Assigning...</>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Assign Module
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unassign Module Confirmation Modal */}
+      {showModuleUnassignModal && moduleToUnassign && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Unassign Module</h3>
+                <button
+                  onClick={() => setShowModuleUnassignModal(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Are you sure you want to unassign this module from the machine?
+                </p>
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="w-10 h-10 bg-brand-500/10 rounded-xl flex items-center justify-center border border-brand-500/20">
+                    <Package className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{moduleToUnassign.name}</p>
+                    <p className="text-sm text-muted-foreground">{moduleToUnassign.code}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowModuleUnassignModal(false)}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmUnassignModule}
+                  disabled={moduleUnassignLoading}
+                  className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {moduleUnassignLoading ? (
+                    <>Unassigning...</>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4" />
+                      Unassign Module
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Metrics Modal */}
+      {showMetricsModal && selectedModuleForMetrics && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-lg mx-4">
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Module Metrics</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">{selectedModuleForMetrics.name}</p>
+                </div>
+                <button
+                  onClick={() => setShowMetricsModal(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {selectedModuleForMetrics.metrics && selectedModuleForMetrics.metrics.length > 0 ? (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {selectedModuleForMetrics.metrics.map((metric, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                          <Activity className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">{metric.name}</p>
+                          <p className="text-xs font-mono text-muted-foreground">{metric.code}</p>
+                        </div>
+                      </div>
+                      {metric.unit && (
+                        <span className="text-xs font-bold text-muted-foreground bg-background px-2 py-1 rounded border border-border/50">
+                          {metric.unit}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No metrics configured for this module</p>
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowMetricsModal(false)}
+                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors font-medium text-sm"
+                >
+                  Close
                 </button>
               </div>
             </div>

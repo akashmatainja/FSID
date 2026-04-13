@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Company } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
 export default function CompaniesPage() {
@@ -221,41 +222,32 @@ export default function CompaniesPage() {
           />
         </div>
         <div className="flex gap-3">
-          <div className="relative min-w-[140px]">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="trial">Trial</option>
-              <option value="suspended">Suspended</option>
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
-          
-          <div className="relative min-w-[160px]">
-            <select
-              value={`${sortBy}-${sortOrder}`}
-              onChange={(e) => {
-                const [field, order] = e.target.value.split("-");
-                setSortBy(field as "name" | "created_at");
-                setSortOrder(order as "asc" | "desc");
-              }}
-              className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border/60 bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50"
-            >
-              <option value="created_at-desc">Newest First</option>
-              <option value="created_at-asc">Oldest First</option>
-              <option value="name-asc">Name A-Z</option>
-              <option value="name-desc">Name Z-A</option>
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
+          <CustomSelect
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as any)}
+            options={[
+              { value: "all", label: "All Statuses" },
+              { value: "active", label: "Active" },
+              { value: "trial", label: "Trial" },
+              { value: "suspended", label: "Suspended" },
+            ]}
+            className="min-w-[140px]"
+          />
+          <CustomSelect
+            value={`${sortBy}-${sortOrder}`}
+            onChange={(v) => {
+              const [field, order] = v.split("-");
+              setSortBy(field as "name" | "created_at");
+              setSortOrder(order as "asc" | "desc");
+            }}
+            options={[
+              { value: "created_at-desc", label: "Newest First" },
+              { value: "created_at-asc", label: "Oldest First" },
+              { value: "name-asc", label: "Name A-Z" },
+              { value: "name-desc", label: "Name Z-A" },
+            ]}
+            className="min-w-[160px]"
+          />
         </div>
       </div>
 
@@ -454,20 +446,15 @@ export default function CompaniesPage() {
                   <label className="block text-sm font-bold text-foreground mb-1.5">
                     Account Status
                   </label>
-                  <div className="relative">
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value })}
-                      className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-xl border border-border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/50 cursor-pointer"
-                    >
-                      <option value="active">Active (Full Access)</option>
-                      <option value="trial">Trial (Limited Time)</option>
-                      <option value="suspended">Suspended (No Access)</option>
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
+                  <CustomSelect
+                    value={form.status}
+                    onChange={(v) => setForm({ ...form, status: v })}
+                    options={[
+                      { value: "active", label: "Active (Full Access)" },
+                      { value: "trial", label: "Trial (Limited Time)" },
+                      { value: "suspended", label: "Suspended (No Access)" },
+                    ]}
+                  />
                 </div>
                 </div>
                 
