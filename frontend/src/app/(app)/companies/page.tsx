@@ -266,103 +266,101 @@ export default function CompaniesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
-            {paginatedCompanies.map((company, index) => (
-              <motion.div
-                key={company.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="group glass-card flex flex-col h-full overflow-hidden"
-              >
-                <div className="p-6 flex-1 flex flex-col">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
-                        <Building2 className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-foreground group-hover:text-brand-600 transition-colors">
-                          {company.name}
-                        </h3>
-                        <p className="text-xs font-medium text-muted-foreground font-mono mt-0.5">@{company.slug}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-3 mb-6">
-                    <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
-                      <div className="flex items-center gap-2 mb-2">
-                        <MapPin className="w-4 h-4 text-brand-500" />
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Branches</span>
-                      </div>
-                      <p className="text-xl font-extrabold text-foreground">{(company as any).branch_count || 0}</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-emerald-500" />
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Users</span>
-                      </div>
-                      <p className="text-xl font-extrabold text-foreground">{company.user_count || 0}</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Cpu className="w-4 h-4 text-blue-500" />
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Equipment</span>
-                      </div>
-                      <p className="text-xl font-extrabold text-foreground">{company.machine_count || 0}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                        company.status === "active"
-                          ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20"
-                          : company.status === "suspended"
-                          ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20"
-                          : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/20"
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                        company.status === "active" ? "bg-emerald-500" :
-                        company.status === "suspended" ? "bg-red-500" : "bg-slate-500"
-                      }`}></span>
-                      {company.status === "active" ? "ACTIVE" : company.status === "suspended" ? "SUSPENDED" : "TRIAL"}
-                    </span>
-                    
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {new Date(company.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center border-t border-border/50 bg-muted/20">
-                  <button 
-                    onClick={() => handleView(company)}
-                    className="flex-1 py-3 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400 hover:bg-card transition-colors border-r border-border/50"
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/20">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Company</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Slug</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Branches</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Users</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Equipment</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {paginatedCompanies.map((company, index) => (
+                  <motion.tr
+                    key={company.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="hover:bg-muted/10 transition-colors"
                   >
-                    <Eye className="w-3.5 h-3.5" /> View
-                  </button>
-                  <button 
-                    onClick={() => openEditModal(company)}
-                    className="flex-1 py-3 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-card transition-colors border-r border-border/50"
-                  >
-                    <Edit className="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <button 
-                    onClick={() => openDeleteModal(company)}
-                    className="flex-1 py-3 flex items-center justify-center gap-2 text-xs font-bold text-red-500/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20">
+                          <Building2 className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="font-bold text-foreground">{company.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-muted-foreground font-mono">@{company.slug}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-foreground">{(company as any).branch_count || 0}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-foreground">{company.user_count || 0}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-foreground">{company.machine_count || 0}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
+                          company.status === "active"
+                            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20"
+                            : company.status === "suspended"
+                            ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20"
+                            : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/20"
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                          company.status === "active" ? "bg-emerald-500" :
+                          company.status === "suspended" ? "bg-red-500" : "bg-slate-500"
+                        }`}></span>
+                        {company.status === "active" ? "ACTIVE" : company.status === "suspended" ? "SUSPENDED" : "TRIAL"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date(company.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => handleView(company)}
+                          className="p-2 rounded-lg text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => openEditModal(company)}
+                          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => openDeleteModal(company)}
+                          className="p-2 rounded-lg text-red-500/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         {filtered.length > 0 && !loading && (
