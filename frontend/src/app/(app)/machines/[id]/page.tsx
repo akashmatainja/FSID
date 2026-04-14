@@ -1,14 +1,25 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package, Trash2, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package, Trash2, ChevronRight, BarChart2 } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from "recharts";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Machine, MachineStat, CompanyUser, Module } from "@/types";
+import { METRIC_COLORS, METRIC_UNITS, type DateRange, type MetricKey } from "@/types";
+import { getDateRangeFrom } from "@/lib/utils";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+
+const DATE_RANGES: { label: string; value: DateRange }[] = [
+  { label: "15m", value: "15m" }, { label: "1h", value: "1h" },
+  { label: "24h", value: "24h" }, { label: "7d", value: "7d" },
+];
 
 const STATUS_CLASSES = {
   active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -51,21 +62,32 @@ export default function MachineDetailPage() {
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [selectedModuleForMetrics, setSelectedModuleForMetrics] = useState<Module | null>(null);
 
+  // Charts state
+  const [dateRange, setDateRange] = useState<DateRange>("1h");
+  const [selectedMetrics, setSelectedMetrics] = useState<Record<string, string[]>>({});
+  const [statsLoading, setStatsLoading] = useState(false);
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
-        const [machineData, statsData, usersData, modulesData] = await Promise.all([
+        const [machineData, usersData, modulesData] = await Promise.all([
           api.get<Machine>(`/api/v1/machines/${machineId}`),
-          api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats`),
           api.get<CompanyUser[]>(`/api/v1/machines/${machineId}/users`),
           api.get<Module[]>(`/api/v1/machines/${machineId}/modules`)
         ]);
 
         setMachine(machineData);
-        setStats(statsData);
         setAssignedUsers(usersData);
         setAssignedModules(modulesData);
+        
+        // Initialize selected metrics for all modules
+        const initialSelectedMetrics: Record<string, string[]> = {};
+        modulesData.forEach((module) => {
+          const metricCodes = module.metrics?.map(m => m.code) || [];
+          initialSelectedMetrics[module.id] = metricCodes;
+        });
+        setSelectedMetrics(initialSelectedMetrics);
       } catch (error) {
         console.error("Failed to load machine data:", error);
         toast.error("Failed to load machine data");
@@ -79,6 +101,53 @@ export default function MachineDetailPage() {
       loadData();
     }
   }, [machineId, router]);
+
+  useEffect(() => {
+    async function loadStats() {
+      if (!machineId) return;
+      setStatsLoading(true);
+      try {
+        const since = getDateRangeFrom(dateRange).toISOString();
+        const until = new Date().toISOString();
+        const statsData = await api.get<MachineStat[]>(`/api/v1/machines/${machineId}/stats?since=${since}&until=${until}`);
+        setStats(statsData);
+      } catch (error) {
+        console.error("Failed to load stats:", error);
+      } finally {
+        setStatsLoading(false);
+      }
+    }
+
+    loadStats();
+    // Auto-refresh stats every 30 seconds
+    const interval = setInterval(loadStats, 30000);
+    return () => clearInterval(interval);
+  }, [machineId, dateRange]);
+
+  const moduleChartDataMap = useMemo(() => {
+    const dataMap: Record<string, any[]> = {};
+
+    assignedModules.forEach((module) => {
+      const merged: Record<string, Record<string, number>> = {};
+
+      module.metrics?.forEach((metric) => {
+        const metricKey = metric.code.toLowerCase();
+        stats
+          .filter((s) => s.metric_key === metricKey)
+          .forEach((s) => {
+            const timeKey = new Date(s.ts).toISOString();
+            if (!merged[timeKey]) merged[timeKey] = {};
+            merged[timeKey][metric.code] = s.metric_value;
+          });
+      });
+
+      dataMap[module.id] = Object.entries(merged)
+        .map(([ts, vals]) => ({ ts, ...vals }))
+        .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    });
+
+    return dataMap;
+  }, [assignedModules, stats]);
 
   const loadAvailableUsers = async () => {
     try {
@@ -715,6 +784,180 @@ export default function MachineDetailPage() {
           </div>
         )}
       </motion.div>
+
+      {/* Module Charts Section */}
+      <div className="space-y-6">
+        {assignedModules.length === 0 ? (
+          <div className="glass-card p-10 text-center border-dashed border-2 border-border">
+            <BarChart2 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-foreground mb-2">No Modules Assigned</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              This machine has no monitoring modules assigned. Assign modules to view analytics charts.
+            </p>
+          </div>
+        ) : (
+          assignedModules.map((module: Module) => {
+            const moduleColor = METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280";
+            const moduleChartData = moduleChartDataMap[module.id] || [];
+            const moduleSelectedMetrics = selectedMetrics[module.id] || module.metrics?.map(m => m.code) || [];
+
+            return (
+              <motion.div
+                key={module.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card p-5 sm:p-6 flex flex-col"
+              >
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${moduleColor}15`, border: `1px solid ${moduleColor}30` }}>
+                      <Package className="w-5 h-5" style={{ color: moduleColor }} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-foreground">{module.name} Monitoring</h2>
+                      <p className="text-xs font-medium text-muted-foreground">{module.code}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
+                      {DATE_RANGES.map((dr) => (
+                        <button
+                          key={dr.value}
+                          onClick={() => setDateRange(dr.value)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            dateRange === dr.value
+                              ? "bg-brand-500 text-white shadow-sm"
+                              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                          }`}
+                        >
+                          {dr.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metric toggles */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {module.metrics?.map((metric, idx) => {
+                    const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+                    const color = colors[idx % colors.length];
+                    const isSelected = moduleSelectedMetrics.includes(metric.code);
+
+                    return (
+                      <button
+                        key={metric.id}
+                        onClick={() => {
+                          setSelectedMetrics(prev => ({
+                            ...prev,
+                            [module.id]: isSelected
+                              ? prev[module.id]?.filter(m => m !== metric.code) || []
+                              : [...(prev[module.id] || []), metric.code]
+                          }));
+                        }}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                          isSelected
+                            ? "bg-card border-border shadow-sm text-foreground"
+                            : "border-transparent text-muted-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full transition-all ${isSelected ? 'scale-100' : 'scale-50 opacity-50'}`}
+                          style={{ backgroundColor: color }}
+                        />
+                        {metric.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="w-full h-[350px]">
+                  {statsLoading ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <EnergyPulseLoader text="Loading analytics..." />
+                    </div>
+                  ) : moduleChartData.length === 0 ? (
+                    <div className="w-full h-full flex items-center justify-center flex-col text-muted-foreground">
+                      <BarChart2 className="w-12 h-12 mb-3 opacity-20" />
+                      <p className="font-medium">No data available for this module in the selected range</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={moduleChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgb(var(--border) / 0.5)" />
+                        <XAxis
+                          dataKey="ts"
+                          tickFormatter={(v) => {
+                            const d = new Date(v);
+                            return dateRange === "24h" || dateRange === "7d" 
+                              ? `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+                              : `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+                          }}
+                          tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
+                          axisLine={false}
+                          tickLine={false}
+                          dy={10}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={60}
+                          tickFormatter={(v) => typeof v === 'number' ? v.toFixed(0) : v}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "rgb(var(--card))",
+                            border: "1px solid rgb(var(--border))",
+                            borderRadius: "1rem",
+                            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.08)",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            padding: "12px 16px"
+                          }}
+                          itemStyle={{ padding: "4px 0" }}
+                          labelStyle={{ color: "rgb(var(--muted-foreground))", marginBottom: "8px", fontSize: "12px" }}
+                          formatter={(v: number, name: string) => {
+                            const metric = module.metrics?.find(m => m.code === name);
+                            return [v.toFixed(2), metric ? `${metric.name} (${metric.unit})` : name];
+                          }}
+                          labelFormatter={(label) => new Date(label).toLocaleString()}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          height={36}
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: "12px", fontWeight: 600, color: "rgb(var(--foreground))" }}
+                        />
+                        {moduleSelectedMetrics.map((metricCode, idx) => {
+                          const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+                          const color = colors[idx % colors.length];
+                          const metric = module.metrics?.find(m => m.code === metricCode);
+                          
+                          return (
+                            <Line
+                              key={metricCode}
+                              type="monotone"
+                              dataKey={metricCode}
+                              name={metric?.name || metricCode}
+                              stroke={color}
+                              strokeWidth={3}
+                              dot={false}
+                              activeDot={{ r: 6, fill: color, stroke: "rgb(var(--card))", strokeWidth: 2 }}
+                              isAnimationActive={true}
+                            />
+                          );
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </div>
 
       {/* Assign User Modal */}
       {showAssignModal && (
