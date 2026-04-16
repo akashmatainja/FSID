@@ -385,7 +385,7 @@ export default function MachineDetailPage() {
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Installation</label>
                 <p className="text-lg font-bold text-foreground">
-                  {machine.installation_date ? new Date(machine.installation_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : "N/A"}
+                  {machine.installation_date ? new Date(machine.installation_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A"}
                 </p>
               </div>
             </div>

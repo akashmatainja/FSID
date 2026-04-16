@@ -384,37 +384,40 @@ func UpdateMachine(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Handle module assignments - delete existing and create new ones
-	// First delete all existing module assignments for this machine
-	if err := database.DB.Where("machine_id = ?", id).Delete(&models.MachineModule{}).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	// Then create new module assignments if provided
-	if len(req.ModuleIDs) > 0 {
-		var machineModules []models.MachineModule
-		for _, moduleIDStr := range req.ModuleIDs {
-			moduleID, err := uuid.Parse(moduleIDStr)
-			if err != nil {
-				continue // Skip invalid module IDs
-			}
-
-			// Verify module exists
-			var module models.Module
-			if database.DB.First(&module, "id = ? AND status = ?", moduleID, "active").Error != nil {
-				continue // Skip inactive or non-existent modules
-			}
-
-			machineModules = append(machineModules, models.MachineModule{
-				MachineID: id,
-				ModuleID:  moduleID,
-				CreatedAt: time.Now(),
-			})
+	// Handle module assignments - only if module_ids is provided in the request
+	// This prevents clearing module assignments when updating other fields
+	if req.ModuleIDs != nil {
+		// First delete all existing module assignments for this machine
+		if err := database.DB.Where("machine_id = ?", id).Delete(&models.MachineModule{}).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		if len(machineModules) > 0 {
-			if err := database.DB.Create(&machineModules).Error; err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		// Then create new module assignments if provided
+		if len(req.ModuleIDs) > 0 {
+			var machineModules []models.MachineModule
+			for _, moduleIDStr := range req.ModuleIDs {
+				moduleID, err := uuid.Parse(moduleIDStr)
+				if err != nil {
+					continue // Skip invalid module IDs
+				}
+
+				// Verify module exists
+				var module models.Module
+				if database.DB.First(&module, "id = ? AND status = ?", moduleID, "active").Error != nil {
+					continue // Skip inactive or non-existent modules
+				}
+
+				machineModules = append(machineModules, models.MachineModule{
+					MachineID: id,
+					ModuleID:  moduleID,
+					CreatedAt: time.Now(),
+				})
+			}
+
+			if len(machineModules) > 0 {
+				if err := database.DB.Create(&machineModules).Error; err != nil {
+					return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+				}
 			}
 		}
 	}

@@ -30,7 +30,31 @@ export default function MachinesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Machine | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    code: string;
+    location: string;
+    status: string;
+    company_id: string;
+    branch_id: string;
+    equipment_type: string;
+    rated_power: string;
+    voltage_rating: string;
+    energy_meter_id: string;
+    operating_hours: string;
+    manufacturer: string;
+    model_number: string;
+    installation_date: string;
+    maintenance_schedule: string;
+    phase: string;
+    critical_equipment: string;
+    sub_unit_monitoring: string;
+    baseline_consumption: string;
+    energy_cost_rate: string;
+    efficiency_target: string;
+    solar_compatible: string;
+    solar_priority: string;
+  }>({
     name: "",
     code: "",
     location: "",
@@ -59,7 +83,30 @@ export default function MachinesPage() {
   const [confirmAction, setConfirmAction] = useState<() => Promise<boolean>>();
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{name?: string; code?: string; location?: string; company_id?: string; branch_id?: string; equipment_type?: string; rated_power?: string; voltage_rating?: string; operating_hours?: string; energy_meter_id?: string; manufacturer?: string; model_number?: string; installation_date?: string; maintenance_schedule?: string; phase?: string; critical_equipment?: string; sub_unit_monitoring?: string; baseline_consumption?: string; energy_cost_rate?: string; efficiency_target?: string; solar_compatible?: string; solar_priority?: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    code?: string;
+    location?: string;
+    company_id?: string;
+    branch_id?: string;
+    equipment_type?: string;
+    rated_power?: string;
+    voltage_rating?: string;
+    operating_hours?: string;
+    energy_meter_id?: string;
+    manufacturer?: string;
+    model_number?: string;
+    installation_date?: string;
+    maintenance_schedule?: string;
+    phase?: string;
+    critical_equipment?: string;
+    sub_unit_monitoring?: string;
+    baseline_consumption?: string;
+    energy_cost_rate?: string;
+    efficiency_target?: string;
+    solar_compatible?: string;
+    solar_priority?: string;
+  }>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -130,25 +177,48 @@ export default function MachinesPage() {
       voltage_rating: m.voltage_rating || "",
       energy_meter_id: m.energy_meter_id || "",
       operating_hours: m.operating_hours?.toString() || "",
-      manufacturer: "",
-      model_number: "",
-      installation_date: "",
-      maintenance_schedule: "",
-      phase: "",
-      critical_equipment: "",
-      sub_unit_monitoring: "",
-      baseline_consumption: "",
-      energy_cost_rate: "",
-      efficiency_target: "",
-      solar_compatible: "",
-      solar_priority: ""
+      manufacturer: m.manufacturer || "",
+      model_number: m.model_number || "",
+      installation_date: m.installation_date ? m.installation_date.split('T')[0] : "",
+      maintenance_schedule: m.maintenance_schedule || "",
+      phase: m.phase || "",
+      critical_equipment: m.critical_equipment || "",
+      sub_unit_monitoring: m.sub_unit_monitoring || "",
+      baseline_consumption: m.baseline_consumption?.toString() || "",
+      energy_cost_rate: m.energy_cost_rate?.toString() || "",
+      efficiency_target: m.efficiency_target?.toString() || "",
+      solar_compatible: m.solar_compatible || "",
+      solar_priority: m.solar_priority || ""
     });
     setFieldErrors({});
     setShowModal(true);
   }
 
   function validate() {
-    const errors: {name?: string; code?: string; location?: string; company_id?: string; branch_id?: string; equipment_type?: string; rated_power?: string; voltage_rating?: string; operating_hours?: string; energy_meter_id?: string; manufacturer?: string; model_number?: string; installation_date?: string; maintenance_schedule?: string; phase?: string; critical_equipment?: string; sub_unit_monitoring?: string; baseline_consumption?: string; energy_cost_rate?: string; efficiency_target?: string; solar_compatible?: string; solar_priority?: string} = {};
+    const errors: {
+      name?: string;
+      code?: string;
+      location?: string;
+      company_id?: string;
+      branch_id?: string;
+      equipment_type?: string;
+      rated_power?: string;
+      voltage_rating?: string;
+      operating_hours?: string;
+      energy_meter_id?: string;
+      manufacturer?: string;
+      model_number?: string;
+      installation_date?: string;
+      maintenance_schedule?: string;
+      phase?: string;
+      critical_equipment?: string;
+      sub_unit_monitoring?: string;
+      baseline_consumption?: string;
+      energy_cost_rate?: string;
+      efficiency_target?: string;
+      solar_compatible?: string;
+      solar_priority?: string;
+    } = {};
     if (!form.name || !form.name.trim()) errors.name = "Machine name is required";
     if (!form.code || !form.code.trim()) errors.code = "Machine code is required";
     if (!form.location || !form.location.trim()) errors.location = "Location is required";

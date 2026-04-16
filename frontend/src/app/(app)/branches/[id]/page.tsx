@@ -233,7 +233,7 @@ export default function BranchDetailPage() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <p className="text-sm font-bold text-foreground">
-                  {new Date(branch.created_at).toLocaleDateString()}
+                  {new Date(branch.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
               </div>
             </div>

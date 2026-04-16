@@ -28,10 +28,10 @@ const nav: NavItem[] = [
     { href: "/subdivisions", label: "Subdivisions", icon: Activity, permission: "subdivisions.read", hideForSuperadmin: true, isChild: true }
   ]},
   { href: "/modules",       label: "Modules",     icon: Package, permission: "superadmin" },
-  { href: "/machines",      label: "Machines",    icon: Cpu, permission: "machines.read" },
-  { href: "/users",         label: "Users",       icon: Users, permission: "users.read" },
+  { href: "/machines",      label: "Machines",    icon: Cpu, permission: "machines.read", hideForSuperadmin: true },
+  { href: "/users",         label: "Users",       icon: Users, permission: "users.read", hideForSuperadmin: true },
   { href: "/roles",         label: "Roles",       icon: Shield, permission: "roles.read" },
-  { href: "/assignments",   label: "Device Assignment", icon: GitBranch, permission: "assignments.read" },
+  { href: "/assignments",   label: "Device Assignment", icon: GitBranch, permission: "assignments.read", hideForSuperadmin: true },
   { href: "/settings",      label: "Settings",    icon: Settings, permission: null }, // No permission required for own settings
 ];
 
