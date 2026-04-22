@@ -225,113 +225,140 @@ export default function UsersPage() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 p-6">
-            {paginatedUsers.map((user, index) => (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300"
-              >
-                {/* Info Section */}
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
-                    <span className="text-white font-bold text-lg">
-                      {user.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
-                        {user.name}
-                      </h3>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border shrink-0 ${
-                          user.status === "active"
-                            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20"
-                            : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/20"
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${user.status === "active" ? "bg-emerald-500" : "bg-slate-500"}`}></span>
-                        {user.status === "active" ? "ACTIVE" : "SUSPENDED"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                  <th className="p-4 pl-6">Operator & Status</th>
+                  <th className="p-4">Contact Gateway</th>
+                  <th className="p-4">Access Level</th>
+                  <th className="p-4">Assigned Node</th>
+                  <th className="p-4 pr-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {paginatedUsers.map((user, index) => (
+                  <motion.tr
+                    key={user.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="group hover:bg-muted/10 transition-colors cursor-default relative"
+                  >
+                    <td className="p-4 pl-6 relative">
+                      {/* Active Status Left Indicator */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${
+                        user.status === 'active' ? 'bg-emerald-500' : 'bg-slate-500'
+                      }`} />
+                      <div className="flex items-center gap-4">
+                        <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 overflow-hidden transition-colors ${
+                          user.status === 'active' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                        }`}>
+                          <span className="font-bold text-lg z-10 relative group-hover:scale-110 transition-transform">
+                            {user.name.charAt(0).toUpperCase()}
+                          </span>
+                          {user.status === 'active' && (
+                            <div className="absolute inset-0 bg-emerald-500/20 blur-md animate-pulse" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-foreground text-sm group-hover:text-emerald-500 transition-colors">
+                              {user.name}
+                            </span>
+                            {user.status === 'active' ? (
+                              <span className="relative flex h-2 w-2" title="Active">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              </span>
+                            ) : (
+                              <span className="w-2 h-2 rounded-full bg-slate-500" title={user.status} />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                            <span className="uppercase tracking-wider text-[10px] font-semibold">{user.status === "active" ? "ACTIVE" : "SUSPENDED"}</span>
+                            <span className="w-1 h-1 rounded-full bg-border" />
+                            <span className="flex items-center gap-1.5 font-sans">
+                              <Calendar className="w-3 h-3 text-emerald-500/50" />
+                              Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="p-4">
+                      <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+                        <Mail className="w-4 h-4 text-emerald-500/70" />
                         {user.email}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                        Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    </td>
 
-                {/* Assignment & Roles Section */}
-                <div className="flex flex-col gap-2 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
-                  <div className="flex flex-wrap items-center gap-4">
-                    {/* Roles */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {user.user_roles?.map((ur) => (
-                        <span
-                          key={ur.role_id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 border border-brand-100 dark:border-brand-500/20 text-[10px] font-bold"
-                        >
-                          <Shield className="w-2.5 h-2.5" />
-                          {ur.role?.name || "Role"}
-                        </span>
-                      ))}
-                      {(!user.user_roles || user.user_roles.length === 0) && (
-                        <span className="text-[10px] font-medium text-muted-foreground italic">No roles</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Branch & Company */}
-                  <div className="flex items-center gap-3 text-xs font-medium">
-                    {user.branch && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground bg-card px-2 py-1 rounded-md border border-border/50">
-                        <MapPin className="w-3 h-3 text-purple-500" />
-                        <span className="truncate max-w-[120px]">{user.branch.name}</span>
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {user.user_roles?.map((ur) => (
+                          <span
+                            key={ur.role_id}
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-brand-500/10 text-brand-500 border-brand-500/20 text-[10px] font-bold uppercase tracking-wider"
+                          >
+                            <Shield className="w-3 h-3" />
+                            {ur.role?.name || "Role"}
+                          </span>
+                        ))}
+                        {(!user.user_roles || user.user_roles.length === 0) && (
+                          <span className="text-[10px] font-medium text-muted-foreground opacity-50 italic">No privileges</span>
+                        )}
                       </div>
-                    )}
-                    {isSuperadmin && user.company && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground bg-card px-2 py-1 rounded-md border border-border/50">
-                        <Building2 className="w-3 h-3 text-brand-500" />
-                        <span className="truncate max-w-[120px]">{user.company.name}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                    </td>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                  {canWrite && (
-                    <>
-                      <button 
-                        onClick={() => openEdit(user)} 
-                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
-                        title="Edit user"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      {companyUser?.id !== user.id && (
-                        <button 
-                          onClick={() => handleDelete(user)}
-                          className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
-                          title="Delete user"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1.5">
+                        {user.branch && (
+                          <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                            <MapPin className="w-3.5 h-3.5 text-purple-500" />
+                            <span className="truncate max-w-[150px]">{user.branch.name}</span>
+                          </div>
+                        )}
+                        {isSuperadmin && user.company && (
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <Building2 className="w-3.5 h-3.5 text-brand-500" />
+                            <span className="truncate max-w-[150px]">{user.company.name}</span>
+                          </div>
+                        )}
+                        {!user.branch && (!isSuperadmin || !user.company) && (
+                          <span className="text-xs text-muted-foreground opacity-50 italic">Unassigned</span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="p-4 pr-6 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                        {canWrite && (
+                          <>
+                            <button 
+                              onClick={() => openEdit(user)} 
+                              className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 border border-transparent transition-all"
+                              title="Modify Permissions"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            {companyUser?.id !== user.id && (
+                              <button 
+                                onClick={() => handleDelete(user)}
+                                className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-500/20 transition-all"
+                                title="Revoke Access"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         
@@ -349,167 +376,195 @@ export default function UsersPage() {
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative glass-card p-0 w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-              <div className="p-6 border-b border-border/50 bg-muted/20 flex items-center gap-3 shrink-0">
-                <div className="w-10 h-10 bg-brand-500/10 rounded-xl flex items-center justify-center border border-brand-500/20">
-                  <UsersIcon className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative glass-card p-0 w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-emerald-500/20">
+              {/* Header with glowing effect */}
+              <div className="relative p-6 border-b border-border/50 bg-muted/20 flex items-center gap-4 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50" />
+                <div className="relative w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                  <UsersIcon className="w-6 h-6 text-emerald-500" />
+                  <div className="absolute inset-0 bg-emerald-500/20 blur-md animate-pulse rounded-2xl" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">{editing ? "Edit User Profile" : "Create New User"}</h2>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">{editing ? "Modify Operator Profile" : "Initialize New Operator"}</h2>
+                  <p className="text-sm font-medium text-muted-foreground">Define operator identity and assign system access nodes.</p>
+                </div>
               </div>
               
               <form onSubmit={handleSave} className="flex flex-col overflow-hidden flex-1" noValidate>
-                <div className="p-6 overflow-y-auto space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Full Name <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 ${fieldErrors.name ? 'text-red-500' : 'text-muted-foreground'}`}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div className="p-6 overflow-y-auto space-y-8 bg-gradient-to-b from-transparent to-muted/5">
+                  {/* Identity Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Operator Identity
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Full Name <span className="text-emerald-500">*</span></label>
+                        <div className="relative">
+                          <div className={`absolute left-4 top-1/2 -translate-y-1/2 ${fieldErrors.name ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          </div>
+                          <input 
+                            value={form.name} 
+                            onChange={(e) => {
+                              setForm((f) => ({ ...f, name: e.target.value }));
+                              if (fieldErrors.name) setFieldErrors({...fieldErrors, name: undefined});
+                            }} 
+                            placeholder="e.g. Jane Doe"
+                            className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                              fieldErrors.name 
+                                ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                                : 'border-border/60 hover:border-emerald-500/30 focus:ring-emerald-500/30 focus:border-emerald-500/50'
+                            }`} 
+                          />
+                        </div>
+                        {fieldErrors.name && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.name}</p>}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Email Address <span className="text-emerald-500">*</span></label>
+                        <div className="relative">
+                          <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.email ? 'text-red-500' : 'text-muted-foreground'}`} />
+                          <input 
+                            type="email"
+                            value={form.email} 
+                            onChange={(e) => {
+                              setForm((f) => ({ ...f, email: e.target.value }));
+                              if (fieldErrors.email) setFieldErrors({...fieldErrors, email: undefined});
+                            }} 
+                            placeholder="jane.doe@company.com"
+                            className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                              fieldErrors.email 
+                                ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                                : 'border-border/60 hover:border-emerald-500/30 focus:ring-emerald-500/30 focus:border-emerald-500/50'
+                            }`} 
+                          />
+                        </div>
+                        {fieldErrors.email && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.email}</p>}
+                      </div>
                     </div>
-                    <input 
-                      value={form.name} 
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, name: e.target.value }));
-                        if (fieldErrors.name) setFieldErrors({...fieldErrors, name: undefined});
-                      }} 
-                      placeholder="e.g. Jane Doe"
-                      className={`w-full pl-11 pr-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                        fieldErrors.name 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`} 
-                    />
                   </div>
-                  {fieldErrors.name && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.name}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Email Address <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.email ? 'text-red-500' : 'text-muted-foreground'}`} />
-                    <input 
-                      type="email"
-                      value={form.email} 
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, email: e.target.value }));
-                        if (fieldErrors.email) setFieldErrors({...fieldErrors, email: undefined});
-                      }} 
-                      placeholder="jane.doe@company.com"
-                      className={`w-full pl-11 pr-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                        fieldErrors.email 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`} 
-                    />
-                  </div>
-                  {fieldErrors.email && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.email}</p>}
-                </div>
-                
-                {isSuperadmin && !editing && (
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">Company <span className="text-red-500">*</span></label>
-                    <CustomSelect
-                      value={form.company_id}
-                      onChange={(v) => {
-                        setForm((f) => ({ ...f, company_id: v }));
-                        if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
-                      }}
-                      error={!!fieldErrors.company_id}
-                      iconLeft={<Building2 className={`w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
-                      placeholder="Assign to a company"
-                      options={companies.map((c) => ({ value: c.id, label: c.name }))}
-                    />
-                    {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Branch Assignment</label>
-                  <CustomSelect
-                    value={form.branch_id}
-                    onChange={(v) => {
-                      setForm((f) => ({ ...f, branch_id: v, subdivision_id: "" }));
-                      if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
-                    }}
-                    error={!!fieldErrors.branch_id}
-                    iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
-                    options={[
-                      { value: "", label: "No branch (company-wide access)" },
-                      ...branches
-                        .filter(b => !isSuperadmin || !form.company_id || b.company_id === form.company_id)
-                        .map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))
-                    ]}
-                  />
-                  {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
-                </div>
 
-                {form.branch_id && (
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">Subdivision Assignment</label>
-                    <CustomSelect
-                      value={form.subdivision_id}
-                      onChange={(v) => {
-                        setForm((f) => ({ ...f, subdivision_id: v }));
-                        if (fieldErrors.subdivision_id) setFieldErrors({...fieldErrors, subdivision_id: undefined});
-                      }}
-                      error={!!fieldErrors.subdivision_id}
-                      iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.subdivision_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
-                      options={[
-                        { value: "", label: "No subdivision (branch-wide access)" },
-                        ...subdivisions
-                          .filter(s => s.branch_id === form.branch_id)
-                          .map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))
-                      ]}
-                    />
-                    {fieldErrors.subdivision_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.subdivision_id}</p>}
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Role Assignment <span className="text-red-500">*</span></label>
-                  <CustomSelect
-                    value={form.role_id}
-                    onChange={(v) => {
-                      setForm((f) => ({ ...f, role_id: v }));
-                      if (fieldErrors.role_id) setFieldErrors({...fieldErrors, role_id: undefined});
-                    }}
-                    error={!!fieldErrors.role_id}
-                    iconLeft={<Shield className={`w-4 h-4 ${fieldErrors.role_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
-                    placeholder="Select a role for this user"
-                    options={roles.map((r) => ({ value: r.id, label: r.name }))}
-                  />
-                  {fieldErrors.role_id && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.role_id}</p>}
-                </div>
-                
-                {!editing && (
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">Initial Password <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Key className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.password ? 'text-red-500' : 'text-muted-foreground'}`} />
-                      <input 
-                        type="password"
-                        value={form.password} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, password: e.target.value }));
-                          if (fieldErrors.password) setFieldErrors({...fieldErrors, password: undefined});
-                        }} 
-                        placeholder="Minimum 8 characters"
-                        className={`w-full pl-11 pr-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.password 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
+                  {/* Network Assignment Section */}
+                  <div className="space-y-4 relative z-20">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      Network Assignment
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                      {isSuperadmin && !editing && (
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Company Node <span className="text-emerald-500">*</span></label>
+                          <CustomSelect
+                            value={form.company_id}
+                            onChange={(v) => {
+                              setForm((f) => ({ ...f, company_id: v }));
+                              if (fieldErrors.company_id) setFieldErrors({...fieldErrors, company_id: undefined});
+                            }}
+                            error={!!fieldErrors.company_id}
+                            iconLeft={<Building2 className={`w-4 h-4 ${fieldErrors.company_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                            placeholder="Assign to a company"
+                            options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                          />
+                          {fieldErrors.company_id && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.company_id}</p>}
+                        </div>
+                      )}
+                      
+                      <div className={`${isSuperadmin && !editing ? '' : 'col-span-1 md:col-span-2 lg:col-span-1'}`}>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Branch Gateway</label>
+                        <CustomSelect
+                          value={form.branch_id}
+                          onChange={(v) => {
+                            setForm((f) => ({ ...f, branch_id: v, subdivision_id: "" }));
+                            if (fieldErrors.branch_id) setFieldErrors({...fieldErrors, branch_id: undefined});
+                          }}
+                          error={!!fieldErrors.branch_id}
+                          iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                          allowClear
+                          placeholder="Select Branch"
+                          options={[
+                            ...branches
+                              .filter(b => !isSuperadmin || !form.company_id || b.company_id === form.company_id)
+                              .map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))
+                          ]}
+                        />
+                        {fieldErrors.branch_id && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.branch_id}</p>}
+                      </div>
+
+                      {form.branch_id && (
+                        <div className="col-span-1 md:col-span-2 lg:col-span-1">
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Subdivision Path</label>
+                          <CustomSelect
+                            value={form.subdivision_id}
+                            onChange={(v) => {
+                              setForm((f) => ({ ...f, subdivision_id: v }));
+                              if (fieldErrors.subdivision_id) setFieldErrors({...fieldErrors, subdivision_id: undefined});
+                            }}
+                            error={!!fieldErrors.subdivision_id}
+                            iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.subdivision_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                            allowClear
+                            placeholder="Select Subdivision"
+                            options={[
+                              ...subdivisions
+                                .filter(s => s.branch_id === form.branch_id)
+                                .map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))
+                            ]}
+                          />
+                        </div>
+                      )}
                     </div>
-                    {fieldErrors.password && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.password}</p>}
                   </div>
-                )}
-                
+
+                  <div className="space-y-4 relative z-10">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    Security & Access
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Role Assignment <span className="text-emerald-500">*</span></label>
+                      <CustomSelect
+                        value={form.role_id}
+                        onChange={(v) => {
+                          setForm((f) => ({ ...f, role_id: v }));
+                          if (fieldErrors.role_id) setFieldErrors({...fieldErrors, role_id: undefined});
+                        }}
+                        error={!!fieldErrors.role_id}
+                        iconLeft={<Shield className={`w-4 h-4 ${fieldErrors.role_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                        placeholder="Select a role for this operator"
+                        options={roles.map((r) => ({ value: r.id, label: r.name }))}
+                      />
+                      {fieldErrors.role_id && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.role_id}</p>}
+                    </div>
+                    
+                    {!editing && (
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Initial Password <span className="text-emerald-500">*</span></label>
+                        <div className="relative">
+                          <Key className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${fieldErrors.password ? 'text-red-500' : 'text-muted-foreground'}`} />
+                          <input 
+                            type="password"
+                            value={form.password} 
+                            onChange={(e) => {
+                              setForm((f) => ({ ...f, password: e.target.value }));
+                              if (fieldErrors.password) setFieldErrors({...fieldErrors, password: undefined});
+                            }} 
+                            placeholder="Minimum 8 characters"
+                            className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                              fieldErrors.password 
+                                ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                                : 'border-border/60 hover:border-emerald-500/30 focus:ring-emerald-500/30 focus:border-emerald-500/50'
+                            }`} 
+                          />
+                        </div>
+                        {fieldErrors.password && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.password}</p>}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="p-6 border-t border-border/50 bg-muted/20 flex gap-3 shrink-0 mt-auto">
-                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-2.5">Cancel</button>
-                  <button type="submit" disabled={saving} className="btn-primary flex-1 py-2.5">
-                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : editing ? "Update User" : "Add User"}
+                  <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-50 disabled:pointer-events-none flex-1 md:flex-none flex items-center justify-center gap-2 ml-auto">
+                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning...</> : editing ? "Update Operator" : "Provision Operator"}
                   </button>
                 </div>
               </form>

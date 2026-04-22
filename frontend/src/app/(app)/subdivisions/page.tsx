@@ -211,83 +211,110 @@ export default function SubdivisionsPage() {
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {paginatedSubdivisions.map((subdivision, index) => (
-            <motion.div
-              key={subdivision.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-purple-500/30 transition-all duration-300"
-            >
-              {/* Info Section */}
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
-                  <GitBranch className="w-6 h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-base sm:text-lg font-bold text-foreground truncate group-hover:text-purple-600 transition-colors">
-                      {subdivision.name}
-                    </h3>
-                    <span
-                      className={`inline-flex items-center text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
-                        subdivision.status === "active"
-                          ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
-                          : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/30"
-                      }`}
-                    >
-                      {subdivision.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
-                    <span className="font-mono">#{subdivision.code}</span>
-                    {subdivision.description && (
-                      <span className="truncate max-w-[200px] sm:max-w-md hidden sm:inline-block">
-                        • {subdivision.description}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+        <div className="glass-card overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                <th className="p-4 pl-6">Subdivision & Status</th>
+                <th className="p-4">Parent Branch</th>
+                {isSuperadmin && <th className="p-4">Organization</th>}
+                <th className="p-4 pr-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/30">
+              {paginatedSubdivisions.map((subdivision, index) => (
+                <motion.tr
+                  key={subdivision.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="group hover:bg-muted/10 transition-colors relative"
+                >
+                  <td className="p-4 pl-6 relative">
+                    <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${
+                      subdivision.status === 'active' ? 'bg-purple-500' : 'bg-slate-500'
+                    }`} />
+                    <div className="flex items-center gap-4">
+                      <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 overflow-hidden transition-colors ${
+                        subdivision.status === 'active' ? 'bg-purple-500/10 border-purple-500/20 text-purple-500' : 'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                      }`}>
+                        <GitBranch className="w-5 h-5 z-10 relative group-hover:scale-110 transition-transform" />
+                        {subdivision.status === 'active' && (
+                          <div className="absolute inset-0 bg-purple-500/20 blur-md animate-pulse" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-foreground text-sm group-hover:text-purple-500 transition-colors">
+                            {subdivision.name}
+                          </span>
+                          {subdivision.status === 'active' ? (
+                            <span className="relative flex h-2 w-2" title="Active">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                            </span>
+                          ) : (
+                            <span className="w-2 h-2 rounded-full bg-slate-500" title={subdivision.status} />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                          <span>#{subdivision.code}</span>
+                          <span className="w-1 h-1 rounded-full bg-border" />
+                          <span className="uppercase tracking-wider text-[10px] font-semibold">{subdivision.status}</span>
+                        </div>
+                        {subdivision.description && (
+                          <div className="text-[10px] text-muted-foreground/70 mt-1 max-w-xs truncate">
+                            {subdivision.description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
 
-              {/* Hierarchy Section */}
-              <div className="flex flex-col gap-1.5 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
-                {subdivision.branch && (
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 text-brand-500" />
-                    <span className="truncate max-w-[150px]">{subdivision.branch.name}</span>
-                  </div>
-                )}
-                {subdivision.company && (
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    <Building2 className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="truncate max-w-[150px]">{subdivision.company.name}</span>
-                  </div>
-                )}
-              </div>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-500 shrink-0">
+                        <MapPin className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-sm font-medium text-foreground">{subdivision.branch?.name || "N/A"}</span>
+                    </div>
+                  </td>
 
-              {/* Actions */}
-              {canWrite && (
-                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => openEditModal(subdivision)}
-                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
-                    title="Edit subdivision"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => openDeleteConfirm(subdivision.id)}
-                    className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
-                    title="Delete subdivision"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          ))}
+                  {isSuperadmin && (
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-brand-500/70" />
+                        <span className="text-sm font-medium text-foreground">{subdivision.company?.name || "N/A"}</span>
+                      </div>
+                    </td>
+                  )}
+
+                  <td className="p-4 pr-6 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                      {canWrite && (
+                        <>
+                          <button
+                            onClick={() => openEditModal(subdivision)}
+                            className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 border border-transparent transition-all"
+                            title="Configure Subdivision"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(subdivision.id)}
+                            className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-500/20 transition-all"
+                            title="Decommission Subdivision"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -314,172 +341,198 @@ export default function SubdivisionsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative glass-card p-0 w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+              className="relative glass-card p-0 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-purple-500/20"
             >
-              <div className="p-6 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
-                    <GitBranch className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-foreground">
-                      {editingId ? "Edit Subdivision" : "Create Subdivision"}
-                    </h2>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {editingId ? "Update subdivision details" : "Add a new subdivision"}
-                    </p>
-                  </div>
+              {/* Header with glowing effect */}
+              <div className="relative p-6 border-b border-border/50 bg-muted/20 flex items-center gap-4 overflow-hidden shrink-0">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50" />
+                <div className="relative w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                  <GitBranch className="w-6 h-6 text-purple-500" />
+                  <div className="absolute inset-0 bg-purple-500/20 blur-md animate-pulse rounded-2xl" />
                 </div>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    {editingId ? "Modify Subdivision Sector" : "Initialize New Subdivision"}
+                  </h2>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Define operational zone hierarchy within the active branch.
+                  </p>
+                </div>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-4">
-                {isSuperadmin && (
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">
-                      Company <span className="text-red-500">*</span>
-                    </label>
-                    <CustomSelect
-                      value={selectedCompany}
-                      onChange={(v) => {
-                        setSelectedCompany(v);
-                        setSelectedBranch("");
-                        setForm({ ...form, branch_id: "" });
-                      }}
-                      iconLeft={<Building2 className="w-4 h-4 text-muted-foreground" />}
-                      placeholder="Select company..."
-                      options={[
-                        { value: "", label: "Select company..." },
-                        ...companies.map((c) => ({ value: c.id, label: c.name }))
-                      ]}
-                    />
+              <div className="p-6 overflow-y-auto space-y-8 bg-gradient-to-b from-transparent to-muted/5">
+                {/* Node Assignment Section */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    Network Hierarchy
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm relative z-30">
+                    {isSuperadmin && (
+                      <div className="col-span-1 md:col-span-2">
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                          Company Node <span className="text-purple-500">*</span>
+                        </label>
+                        <CustomSelect
+                          value={selectedCompany}
+                          onChange={(v) => {
+                            setSelectedCompany(v);
+                            setSelectedBranch("");
+                            setForm({ ...form, branch_id: "" });
+                          }}
+                          iconLeft={<Building2 className="w-4 h-4 text-muted-foreground" />}
+                          allowClear
+                          placeholder="Select company network..."
+                          options={[
+                            ...companies.map((c) => ({ value: c.id, label: c.name }))
+                          ]}
+                        />
+                      </div>
+                    )}
+
+                    <div className={`col-span-1 ${!isSuperadmin ? 'md:col-span-2' : 'md:col-span-2'} relative z-20`}>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Branch Gateway <span className="text-purple-500">*</span>
+                      </label>
+                      <CustomSelect
+                        value={form.branch_id}
+                        onChange={(v) => setForm({ ...form, branch_id: v })}
+                        error={!!fieldErrors.branch_id}
+                        iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
+                        allowClear
+                        placeholder="Select branch routing..."
+                        options={[
+                          ...branches
+                            .filter((b) => !isSuperadmin || !selectedCompany || b.company_id === selectedCompany)
+                            .map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))
+                        ]}
+                      />
+                      {fieldErrors.branch_id && (
+                        <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {fieldErrors.branch_id}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">
-                    Branch <span className="text-red-500">*</span>
-                  </label>
-                  <CustomSelect
-                    value={form.branch_id}
-                    onChange={(v) => setForm({ ...form, branch_id: v })}
-                    error={!!fieldErrors.branch_id}
-                    iconLeft={<MapPin className={`w-4 h-4 ${fieldErrors.branch_id ? 'text-red-500' : 'text-muted-foreground'}`} />}
-                    placeholder="Select branch..."
-                    options={[
-                      { value: "", label: "Select branch...", disabled: true },
-                      ...branches
-                        .filter((b) => !isSuperadmin || !selectedCompany || b.company_id === selectedCompany)
-                        .map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))
-                    ]}
-                  />
-                  {fieldErrors.branch_id && (
-                    <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> {fieldErrors.branch_id}
-                    </p>
-                  )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className={`w-full px-4 py-3 rounded-xl border bg-card/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 transition-all ${
-                      fieldErrors.name
-                        ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500'
-                        : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                    }`}
-                    placeholder="e.g., Production Floor A"
-                  />
-                  {fieldErrors.name && (
-                    <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> {fieldErrors.name}
-                    </p>
-                  )}
+                {/* Sub-Node Identity */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    Sub-Node Identity
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Subdivision Name <span className="text-purple-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.name
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500'
+                            : 'border-border/60 hover:border-purple-500/30 focus:ring-purple-500/30 focus:border-purple-500/50'
+                        }`}
+                        placeholder="e.g., Production Floor A"
+                      />
+                      {fieldErrors.name && (
+                        <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {fieldErrors.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Subdivision Code <span className="text-purple-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={form.code}
+                        onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                        className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 transition-all ${
+                          fieldErrors.code
+                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500'
+                            : 'border-border/60 hover:border-purple-500/30 focus:ring-purple-500/30 focus:border-purple-500/50'
+                        }`}
+                        placeholder="e.g., PFA"
+                      />
+                      {fieldErrors.code && (
+                        <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {fieldErrors.code}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2">
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Description</label>
+                      <textarea
+                        value={form.description}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        rows={2}
+                        className="w-full px-4 py-3 rounded-xl border border-border/60 bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 hover:border-purple-500/30 focus:ring-purple-500/30 focus:border-purple-500/50 transition-all resize-none"
+                        placeholder="Optional system description..."
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">
-                    Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                    className={`w-full px-4 py-3 rounded-xl border bg-card/50 text-sm font-medium font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 transition-all ${
-                      fieldErrors.code
-                        ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500'
-                        : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                    }`}
-                    placeholder="e.g., PFA"
-                  />
-                  {fieldErrors.code && (
-                    <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> {fieldErrors.code}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Description</label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-border/60 bg-card/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 transition-all resize-none"
-                    placeholder="Optional description..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Status</label>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setForm({ ...form, status: "active" })}
-                      className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                        form.status === "active"
-                          ? "bg-emerald-500 text-white shadow-md"
-                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      Active
-                    </button>
-                    <button
-                      onClick={() => setForm({ ...form, status: "inactive" })}
-                      className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                        form.status === "inactive"
-                          ? "bg-slate-500 text-white shadow-md"
-                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      Inactive
-                    </button>
+                {/* Operations Section */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                    Sub-Node Operations
+                  </h3>
+                  <div className="p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Status</label>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setForm({ ...form, status: "active" })}
+                        className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
+                          form.status === "active"
+                            ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                            : "bg-background border-border/50 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${form.status === "active" ? "bg-purple-500 animate-pulse" : "bg-transparent"}`} />
+                          ONLINE
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setForm({ ...form, status: "inactive" })}
+                        className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
+                          form.status === "inactive"
+                            ? "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/50"
+                            : "bg-background border-border/50 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${form.status === "inactive" ? "bg-slate-500" : "bg-transparent"}`} />
+                          OFFLINE
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="p-6 border-t border-border/50 bg-muted/20 flex gap-3 shrink-0 mt-auto">
-                <button onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-2.5">
+                <button onClick={() => setShowModal(false)} className="px-6 py-2.5 rounded-xl border border-border/60 bg-background hover:bg-muted text-sm font-bold text-foreground transition-all flex-1 md:flex-none">
                   Cancel
                 </button>
-                <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-2.5">
+                <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-bold shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 disabled:pointer-events-none flex-1 md:flex-none flex items-center justify-center gap-2 ml-auto">
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      {editingId ? "Updating..." : "Creating..."}
+                      {editingId ? "Committing..." : "Deploying..."}
                     </>
                   ) : (
                     <>
-                      {editingId ? "Update" : "Create"} Subdivision
+                      {editingId ? "Deploy Changes" : "Initialize Sector"}
                     </>
                   )}
                 </button>

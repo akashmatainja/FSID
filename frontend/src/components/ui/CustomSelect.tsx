@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, X } from "lucide-react";
 
 export interface SelectOption {
   value: string;
@@ -19,6 +19,8 @@ interface CustomSelectProps {
   error?: boolean;
   disabled?: boolean;
   iconLeft?: React.ReactNode;
+  allowClear?: boolean;
+  onClear?: () => void;
 }
 
 export default function CustomSelect({
@@ -30,6 +32,8 @@ export default function CustomSelect({
   error = false,
   disabled = false,
   iconLeft,
+  allowClear = false,
+  onClear,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -45,6 +49,12 @@ export default function CustomSelect({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClear) onClear();
+    else onChange("");
+  };
 
   return (
     <div ref={ref} className={`relative ${className}`} style={{ zIndex: open ? 100 : "auto" }}>
@@ -64,20 +74,31 @@ export default function CustomSelect({
         style={{ backgroundColor: "rgb(var(--card) / 0.8)", color: "rgb(var(--foreground))" }}
       >
         {iconLeft && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+          <span className="absolute left-4 -translate-y-1/2 pointer-events-none text-muted-foreground z-10" style={{ top: "50%" }}>
             {iconLeft}
           </span>
         )}
-        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
-          {selected ? selected.label : placeholder}
+        <span className={`flex-1 truncate ${selected && selected.value !== "" ? "text-foreground" : "text-muted-foreground"}`}>
+          {selected && selected.value !== "" ? selected.label : placeholder}
         </span>
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-        >
-          <ChevronDown className="w-4 h-4" />
-        </motion.span>
+        
+        <div className="absolute right-3 -translate-y-1/2 flex items-center gap-1" style={{ top: "50%" }}>
+          {allowClear && selected && selected.value !== "" && !disabled && (
+            <div 
+              onClick={handleClear}
+              className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </div>
+          )}
+          <motion.span
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-muted-foreground"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </motion.span>
+        </div>
       </button>
 
       <AnimatePresence>
