@@ -165,92 +165,115 @@ export default function RolesPage() {
             <p className="text-sm font-medium text-muted-foreground">Try adjusting your search terms or create a new role.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 p-6">
-            {paginatedRoles.map((r, i) => (
-              <motion.div 
-                key={r.id} 
-                initial={{ opacity: 0, x: -20 }} 
-                animate={{ opacity: 1, x: 0 }} 
-                transition={{ delay: i * 0.05 }}
-                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300"
-              >
-                {/* Info Section */}
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
-                    <Shield className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
-                        {r.name}
-                      </h3>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border/50 shrink-0">
-                        {r.role_permissions?.length || 0} permissions
-                      </span>
-                      {isSuperadmin && r.company && (
-                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 shrink-0">
-                          <Building2 className="w-3 h-3 mr-1" />
-                          {r.company.name}
-                        </span>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                  <th className="p-4 pl-6">Role Identity</th>
+                  {isSuperadmin && <th className="p-4">Organization</th>}
+                  <th className="p-4">Privilege Matrix</th>
+                  <th className="p-4 pr-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {paginatedRoles.map((r, i) => (
+                  <motion.tr 
+                    key={r.id} 
+                    initial={{ opacity: 0, y: 10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ delay: i * 0.05 }}
+                    className="group hover:bg-muted/10 transition-colors relative"
+                  >
+                    <td className="p-4 pl-6 relative">
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity bg-amber-500" />
+                      <div className="flex items-center gap-4">
+                        <div className="relative w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 overflow-hidden transition-colors bg-amber-500/10 border-amber-500/20 text-amber-500">
+                          <Shield className="w-5 h-5 z-10 relative group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-foreground text-sm group-hover:text-amber-500 transition-colors">
+                              {r.name}
+                            </span>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-muted text-muted-foreground border border-border/50 shrink-0">
+                              {r.role_permissions?.length || 0} permissions
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-muted-foreground truncate max-w-sm">
+                            {r.description || "No description provided"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {isSuperadmin && (
+                      <td className="p-4">
+                        {r.company ? (
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <Building2 className="w-4 h-4 text-brand-500/70" />
+                            {r.company.name}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground opacity-50 italic">System Default</span>
+                        )}
+                      </td>
+                    )}
+
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-1.5 max-w-[400px]">
+                        {r.role_permissions?.slice(0, 4).map((rp) => {
+                          const permKey = rp.permission?.key || "?";
+                          // Color code based on permission type
+                          let colorClass = "bg-slate-100/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 border-slate-200/50 dark:border-slate-700/50";
+                          if (permKey === "superadmin") colorClass = "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20";
+                          else if (permKey.includes("write")) colorClass = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+                          else if (permKey.includes("read")) colorClass = "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
+                          
+                          return (
+                            <span 
+                              key={rp.permission_id} 
+                              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-medium border ${colorClass} truncate max-w-[120px] uppercase tracking-wider`}
+                              title={rp.permission?.description}
+                            >
+                              {permKey}
+                            </span>
+                          );
+                        })}
+                        {(r.role_permissions?.length || 0) > 4 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-muted text-muted-foreground border border-border/50 uppercase tracking-wider">
+                            +{(r.role_permissions?.length || 0) - 4} more
+                          </span>
+                        )}
+                        {(r.role_permissions?.length || 0) === 0 && (
+                          <span className="text-[10px] text-muted-foreground italic">No privileges assigned</span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="p-4 pr-6 text-right">
+                      {canWrite && (
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                          <button 
+                            onClick={() => openEdit(r)} 
+                            className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 border border-transparent transition-all"
+                            title="Modify Matrix"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(r.id)} 
+                            className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-500/20 transition-all"
+                            title="Revoke Role"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
-                    </div>
-                    <p className="text-xs font-medium text-muted-foreground truncate max-w-xl">
-                      {r.description || "No description provided"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Permissions Section */}
-                <div className="flex flex-wrap gap-1.5 px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto max-w-[300px]">
-                  {r.role_permissions?.slice(0, 3).map((rp) => {
-                    const permKey = rp.permission?.key || "?";
-                    // Color code based on permission type
-                    let colorClass = "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
-                    if (permKey === "superadmin") colorClass = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800";
-                    else if (permKey.includes("write")) colorClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800";
-                    else if (permKey.includes("read")) colorClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
-                    
-                    return (
-                      <span 
-                        key={rp.permission_id} 
-                        className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-medium border ${colorClass} truncate max-w-[120px]`}
-                        title={rp.permission?.description}
-                      >
-                        {permKey}
-                      </span>
-                    );
-                  })}
-                  {(r.role_permissions?.length || 0) > 3 && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-muted text-muted-foreground border border-border/50">
-                      +{(r.role_permissions?.length || 0) - 3} more
-                    </span>
-                  )}
-                  {(r.role_permissions?.length || 0) === 0 && (
-                    <span className="text-[10px] text-muted-foreground italic">No permissions assigned</span>
-                  )}
-                </div>
-
-                {/* Actions */}
-                {canWrite && (
-                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => openEdit(r)} 
-                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
-                      title="Edit role"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(r.id)} 
-                      className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
-                      title="Delete role"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -268,102 +291,139 @@ export default function RolesPage() {
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative glass-card p-0 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-              <div className="p-6 border-b border-border/50 bg-muted/20 flex items-center gap-4">
-                <div className="w-12 h-12 bg-brand-500/10 rounded-2xl flex items-center justify-center border border-brand-500/20">
-                  <Shield className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative glass-card p-0 w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-amber-500/20">
+              {/* Header with glowing effect */}
+              <div className="relative p-6 border-b border-border/50 bg-muted/20 flex items-center gap-4 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50" />
+                <div className="relative w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                  <Shield className="w-6 h-6 text-amber-500" />
+                  <div className="absolute inset-0 bg-amber-500/20 blur-md animate-pulse rounded-2xl" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-foreground">{editing ? "Edit Role Configuration" : "Create New Role"}</h2>
-                  <p className="text-sm font-medium text-muted-foreground">Define role details and assign specific permissions.</p>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">{editing ? "Modify Privilege Matrix" : "Initialize New Role"}</h2>
+                  <p className="text-sm font-medium text-muted-foreground">Define role identity and assign system access levels.</p>
                 </div>
               </div>
               
               <form onSubmit={handleSave} className="flex flex-col overflow-hidden flex-1" noValidate>
-                <div className="p-6 overflow-y-auto space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">Role Name <span className="text-red-500">*</span></label>
-                    <input 
-                      value={form.name} 
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, name: e.target.value }));
-                        if (fieldErrors.name) setFieldErrors({...fieldErrors, name: undefined});
-                      }} 
-                      placeholder="e.g. Area Manager"
-                      className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                        fieldErrors.name 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`} 
-                    />
-                    {fieldErrors.name && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.name}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-1.5">Description</label>
-                    <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Brief description of this role's responsibilities"
-                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/50 transition-all" />
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-bold text-foreground">Permissions Configuration</label>
-                    <span className="text-xs font-bold bg-brand-500/10 text-brand-600 dark:text-brand-400 px-2.5 py-1 rounded-lg border border-brand-500/20">
-                      {form.permissions.length} selected
-                    </span>
+                <div className="p-6 overflow-y-auto space-y-8 bg-gradient-to-b from-transparent to-muted/5">
+                  {/* Identity Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      Role Identity
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Role Name <span className="text-amber-500">*</span></label>
+                        <input 
+                          value={form.name} 
+                          onChange={(e) => {
+                            setForm((f) => ({ ...f, name: e.target.value }));
+                            if (fieldErrors.name) setFieldErrors({...fieldErrors, name: undefined});
+                          }} 
+                          placeholder="e.g. System Operator"
+                          className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                            fieldErrors.name 
+                              ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                              : 'border-border/60 hover:border-amber-500/30 focus:ring-amber-500/30 focus:border-amber-500/50'
+                          }`} 
+                        />
+                        {fieldErrors.name && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.name}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Description</label>
+                        <input 
+                          value={form.description} 
+                          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} 
+                          placeholder="Brief description of responsibilities"
+                          className="w-full px-4 py-3 rounded-xl border border-border/60 bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 hover:border-amber-500/30 transition-all" 
+                        />
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border border-border/50 rounded-2xl bg-card/30">
-                    {permissions.map((p) => {
-                      const isSelected = form.permissions.includes(p.key);
-                      const isSuperadminPerm = p.key === "superadmin";
-                      const isWritePerm = p.key.includes("write");
-                      
-                      return (
-                        <label 
-                          key={p.id} 
-                          className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                            isSelected 
-                              ? isSuperadminPerm ? 'bg-purple-50 border-purple-200 dark:bg-purple-900/10 dark:border-purple-800' : 'bg-brand-50 border-brand-200 dark:bg-brand-900/10 dark:border-brand-800'
-                              : 'bg-card border-border/50 hover:bg-muted/50 hover:border-border'
-                          }`}
-                        >
-                          <div className="pt-0.5 relative flex items-center justify-center">
-                            <input 
-                              type="checkbox" 
-                              checked={isSelected}
-                              onChange={(e) => {
-                                if (e.target.checked) setForm((f) => ({ ...f, permissions: [...f.permissions, p.key] }));
-                                else setForm((f) => ({ ...f, permissions: f.permissions.filter((k) => k !== p.key) }));
-                              }}
-                              className="w-4 h-4 rounded border-border/80 text-brand-500 focus:ring-brand-500/30 transition-all appearance-none bg-background cursor-pointer" 
-                            />
-                            {isSelected && <CheckCircle2 className={`absolute pointer-events-none w-4 h-4 ${isSuperadminPerm ? 'text-purple-500' : 'text-brand-500'} bg-white dark:bg-slate-900 rounded-full`} />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-bold truncate ${
+                  {/* Permissions Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Privilege Configuration
+                      </h3>
+                      <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg border border-border/50">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="text-xs font-bold text-foreground">
+                          {form.permissions.length} <span className="text-muted-foreground">Active Nodes</span>
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                      {permissions.map((p) => {
+                        const isSelected = form.permissions.includes(p.key);
+                        const isSuperadminPerm = p.key === "superadmin";
+                        const isWritePerm = p.key.includes("write");
+                        
+                        return (
+                          <label 
+                            key={p.id} 
+                            className={`flex flex-col gap-3 p-4 rounded-xl border cursor-pointer transition-all duration-300 ${
                               isSelected 
-                                ? isSuperadminPerm ? 'text-purple-700 dark:text-purple-400' : 'text-brand-700 dark:text-brand-400'
-                                : 'text-foreground'
-                            }`}>
-                              {p.key}
-                            </p>
-                            <p className="text-xs font-medium text-muted-foreground mt-0.5 leading-tight">{p.description}</p>
-                            {isWritePerm && !isSelected && <span className="inline-block mt-1.5 text-[9px] uppercase tracking-wider font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">Write Access</span>}
-                            {isSuperadminPerm && !isSelected && <span className="inline-block mt-1.5 text-[9px] uppercase tracking-wider font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded">Critical Permission</span>}
-                          </div>
-                        </label>
-                      );
-                    })}
+                                ? isSuperadminPerm ? 'bg-purple-500/10 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                : 'bg-background border-border/50 hover:bg-muted hover:border-border'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`text-sm font-bold truncate tracking-tight ${
+                                isSelected 
+                                  ? isSuperadminPerm ? 'text-purple-500' : 'text-emerald-500'
+                                  : 'text-foreground'
+                              }`}>
+                                {p.key}
+                              </p>
+                              <div className="relative flex items-center justify-center shrink-0">
+                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                  isSelected 
+                                    ? isSuperadminPerm ? 'border-purple-500 bg-purple-500' : 'border-emerald-500 bg-emerald-500'
+                                    : 'border-muted-foreground/30 bg-transparent'
+                                }`}>
+                                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                                </div>
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setForm((f) => ({ ...f, permissions: [...f.permissions, p.key] }));
+                                    else setForm((f) => ({ ...f, permissions: f.permissions.filter((k) => k !== p.key) }));
+                                  }}
+                                  className="absolute opacity-0 w-0 h-0" 
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col gap-2 mt-auto">
+                              <p className={`text-xs font-medium leading-relaxed line-clamp-2 ${
+                                isSelected ? 'text-foreground/80' : 'text-muted-foreground'
+                              }`}>
+                                {p.description}
+                              </p>
+                              <div className="flex gap-1.5 mt-1">
+                                {isWritePerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">Write Access</span>}
+                                {isSuperadminPerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-purple-500/10 text-purple-500 border border-purple-500/20 animate-pulse">Critical System Node</span>}
+                                {!isWritePerm && !isSuperadminPerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">Read Access</span>}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
                 </div>
                 
                 <div className="p-6 border-t border-border/50 bg-muted/20 flex gap-3 shrink-0 mt-auto">
-                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-3">Cancel</button>
-                  <button type="submit" disabled={saving} className="btn-primary flex-1 py-3">
-                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving Configuration...</> : "Save Role Configuration"}
+                  <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 rounded-xl border border-border/60 bg-background hover:bg-muted text-sm font-bold text-foreground transition-all flex-1 md:flex-none">Cancel</button>
+                  <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition-all disabled:opacity-50 disabled:pointer-events-none flex-1 md:flex-none flex items-center justify-center gap-2 ml-auto">
+                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Committing Matrix...</> : "Deploy Role Configuration"}
                   </button>
                 </div>
               </form>

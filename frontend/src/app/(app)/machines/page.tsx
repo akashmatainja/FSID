@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Building2, AlertCircle, Package } from "lucide-react";
+import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Building2, AlertCircle, Package, Activity, Radio, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -353,87 +353,149 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
             <p className="text-sm text-muted-foreground">Try adjusting your search query or add new machines.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 p-6">
-            {paginatedMachines.map((m, index) => (
-              <motion.div
-                key={m.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => router.push(`/machines/${m.id}`)}
-                className="group glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 gap-4 hover:shadow-md hover:border-brand-500/30 transition-all duration-300 cursor-pointer"
-              >
-                {/* Info Section */}
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center border border-brand-100 dark:border-brand-500/20 shrink-0 group-hover:scale-105 transition-transform duration-300">
-                    <Cpu className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-bold text-base sm:text-lg text-foreground truncate group-hover:text-brand-600 transition-colors">
-                        {m.name}
-                      </h3>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border shrink-0 ${STATUS_CLASSES[m.status]}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                          m.status === 'active' ? 'bg-emerald-500' :
-                          m.status === 'maintenance' ? 'bg-amber-500' : 'bg-slate-500'
-                        }`}></span>
-                        {m.status.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground flex-wrap">
-                      <span className="font-mono">#{m.code}</span>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5" />
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                  <th className="p-4 pl-6">Equipment & Status</th>
+                  {isSuperadmin && <th className="p-4">Company</th>}
+                  <th className="p-4">Location Node</th>
+                  <th className="p-4">Technical Specs</th>
+                  <th className="p-4">Power Rating</th>
+                  <th className="p-4 pr-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {paginatedMachines.map((m, index) => (
+                  <motion.tr
+                    key={m.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => router.push(`/machines/${m.id}`)}
+                    className="group hover:bg-muted/10 transition-colors cursor-pointer relative"
+                  >
+                    <td className="p-4 pl-6 relative">
+                      {/* Active Status Left Indicator */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${
+                        m.status === 'active' ? 'bg-emerald-500' :
+                        m.status === 'maintenance' ? 'bg-amber-500' : 'bg-slate-500'
+                      }`} />
+                      <div className="flex items-center gap-4">
+                        <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 overflow-hidden transition-colors ${
+                          m.status === 'active' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                          m.status === 'maintenance' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                        }`}>
+                          <Cpu className="w-5 h-5 z-10 relative group-hover:scale-110 transition-transform" />
+                          {m.status === 'active' && (
+                            <div className="absolute inset-0 bg-emerald-500/20 blur-md animate-pulse" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-foreground text-sm group-hover:text-brand-500 transition-colors">
+                              {m.name}
+                            </span>
+                            {m.status === 'active' ? (
+                              <span className="relative flex h-2 w-2" title="Active & Monitoring">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              </span>
+                            ) : (
+                              <span className={`w-2 h-2 rounded-full ${m.status === 'maintenance' ? 'bg-amber-500' : 'bg-slate-500'}`} title={m.status} />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                            <span>#{m.code}</span>
+                            <span className="w-1 h-1 rounded-full bg-border" />
+                            <span className="uppercase tracking-wider text-[10px] font-semibold">{m.status}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {isSuperadmin && (
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-brand-500/70" />
+                          <span className="text-sm font-medium text-foreground">{m.company?.name || "N/A"}</span>
+                        </div>
+                      </td>
+                    )}
+
+                    <td className="p-4">
+                      <div className="flex items-center gap-1.5 text-sm text-foreground font-medium">
+                        <MapPin className="w-4 h-4 text-brand-500/70" />
                         {m.location}
                       </div>
-                    </div>
-                  </div>
-                </div>
+                      {m.branch_id && (
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                          <Radio className="w-3 h-3 text-brand-500/50" />
+                          Node Active
+                        </div>
+                      )}
+                    </td>
 
-                {/* Company Section */}
-                {isSuperadmin && m.company && (
-                  <div className="flex flex-col px-4 py-2 bg-muted/30 rounded-xl border border-border/50 shrink-0 w-full sm:w-auto">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Company</span>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-3.5 h-3.5 text-brand-500" />
-                      <span className="text-sm font-bold text-foreground truncate max-w-[150px]">{m.company.name}</span>
-                    </div>
-                  </div>
-                )}
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1.5">
+                        <div>
+                          <span className="text-[10px] px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider">
+                            {m.equipment_type || "UNKNOWN"}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-amber-500" /> {m.phase || "N/A"} Phase</span>
+                          <span className="w-1 h-1 rounded-full bg-border" />
+                          <span className="font-mono">{m.voltage_rating || "N/A"}</span>
+                        </div>
+                      </div>
+                    </td>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    onClick={() => router.push(`/machines/${m.id}`)}
-                    className="p-2 rounded-lg bg-brand-500/10 text-brand-600 hover:bg-brand-500/20 border border-transparent hover:border-brand-500/20 transition-all"
-                    title="View details"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  {canWrite && (
-                    <>
-                      <button 
-                        onClick={() => openEdit(m)}
-                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-card border border-border/50 hover:border-border transition-all"
-                        title="Edit machine"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(m.id)}
-                        className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-transparent hover:border-red-500/20 transition-all"
-                        title="Delete machine"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                    <td className="p-4">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-bold text-foreground font-mono tracking-tight">{m.rated_power || 0}</span>
+                        <span className="text-xs text-brand-500 font-bold tracking-widest">kW</span>
+                      </div>
+                      {m.operating_hours ? (
+                        <div className="text-xs text-muted-foreground mt-0.5 font-medium">
+                          <span className="text-foreground">{m.operating_hours}h</span> / day
+                        </div>
+                      ) : null}
+                    </td>
+
+                    <td className="p-4 pr-6 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          onClick={() => router.push(`/machines/${m.id}`)}
+                          className="p-1.5 rounded-lg bg-brand-500/10 text-brand-600 hover:bg-brand-500 hover:text-white border border-transparent hover:border-brand-500/20 transition-all"
+                          title="View Live Metrics"
+                        >
+                          <Activity className="w-4 h-4" />
+                        </button>
+                        {canWrite && (
+                          <>
+                            <button 
+                              onClick={() => openEdit(m)}
+                              className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 border border-transparent transition-all"
+                              title="Configure Equipment"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(m.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-500/20 transition-all"
+                              title="Decommission Equipment"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         
@@ -670,272 +732,237 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                   </div>
                 </div>
                 
-                {/* Additional Energy Monitoring Fields */}
-                <div className="border-t border-border/50 pt-4">
-                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    Equipment Details & Configuration
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Manufacturer</label>
-                      <input 
-                        value={form.manufacturer} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, manufacturer: e.target.value }));
-                          if (fieldErrors.manufacturer) setFieldErrors({...fieldErrors, manufacturer: undefined});
-                        }} 
-                        placeholder="Siemens"
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.manufacturer 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
+                  {/* Additional Configurations */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Equipment Details */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        Hardware Config
+                      </h3>
+                      <div className="grid grid-cols-1 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm relative z-20">
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Manufacturer</label>
+                          <input 
+                            value={form.manufacturer} 
+                            onChange={(e) => {
+                              setForm((f) => ({ ...f, manufacturer: e.target.value }));
+                              if (fieldErrors.manufacturer) setFieldErrors({...fieldErrors, manufacturer: undefined});
+                            }} 
+                            placeholder="e.g. Siemens"
+                            className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 hover:border-amber-500/30 focus:ring-amber-500/30 focus:border-amber-500/50 transition-all border-border/60`} 
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Model Number</label>
+                          <input 
+                            value={form.model_number} 
+                            onChange={(e) => {
+                              setForm((f) => ({ ...f, model_number: e.target.value }));
+                              if (fieldErrors.model_number) setFieldErrors({...fieldErrors, model_number: undefined});
+                            }} 
+                            placeholder="e.g. S7-1200"
+                            className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 hover:border-amber-500/30 focus:ring-amber-500/30 focus:border-amber-500/50 transition-all border-border/60`} 
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Installation Date</label>
+                          <input 
+                            type="date"
+                            value={form.installation_date} 
+                            onChange={(e) => {
+                              setForm((f) => ({ ...f, installation_date: e.target.value }));
+                              if (fieldErrors.installation_date) setFieldErrors({...fieldErrors, installation_date: undefined});
+                            }} 
+                            className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 hover:border-amber-500/30 focus:ring-amber-500/30 focus:border-amber-500/50 transition-all border-border/60 text-muted-foreground`} 
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Maintenance Schedule</label>
+                          <CustomSelect
+                            value={form.maintenance_schedule}
+                            onChange={(v) => {
+                              setForm((f) => ({ ...f, maintenance_schedule: v }));
+                              if (fieldErrors.maintenance_schedule) setFieldErrors({...fieldErrors, maintenance_schedule: undefined});
+                            }}
+                            error={!!fieldErrors.maintenance_schedule}
+                            allowClear
+                            placeholder="Select cycle"
+                            options={[
+                              { value: "monthly", label: "Monthly" },
+                              { value: "quarterly", label: "Quarterly" },
+                              { value: "yearly", label: "Yearly" },
+                              { value: "as-needed", label: "Ad-hoc / As Needed" },
+                            ]}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Model Number</label>
-                      <input 
-                        value={form.model_number} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, model_number: e.target.value }));
-                          if (fieldErrors.model_number) setFieldErrors({...fieldErrors, model_number: undefined});
-                        }} 
-                        placeholder="S7-1200"
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.model_number 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Installation Date</label>
-                      <input 
-                        type="date"
-                        value={form.installation_date} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, installation_date: e.target.value }));
-                          if (fieldErrors.installation_date) setFieldErrors({...fieldErrors, installation_date: undefined});
-                        }} 
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.installation_date 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Maintenance Schedule</label>
-                      <CustomSelect
-                        value={form.maintenance_schedule}
-                        onChange={(v) => {
-                          setForm((f) => ({ ...f, maintenance_schedule: v }));
-                          if (fieldErrors.maintenance_schedule) setFieldErrors({...fieldErrors, maintenance_schedule: undefined});
-                        }}
-                        error={!!fieldErrors.maintenance_schedule}
-                        placeholder="Select schedule"
-                        options={[
-                          { value: "monthly", label: "Monthly" },
-                          { value: "quarterly", label: "Quarterly" },
-                          { value: "yearly", label: "Yearly" },
-                          { value: "as-needed", label: "As Needed" },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Energy Configuration */}
-                <div className="border-t border-border/50 pt-4">
-                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    Energy Configuration
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Phase</label>
-                      <CustomSelect
-                        value={form.phase}
-                        onChange={(v) => {
-                          setForm((f) => ({ ...f, phase: v }));
-                          if (fieldErrors.phase) setFieldErrors({...fieldErrors, phase: undefined});
-                        }}
-                        error={!!fieldErrors.phase}
-                        placeholder="Select phase"
-                        options={[
-                          { value: "single", label: "Single Phase" },
-                          { value: "three", label: "Three Phase" },
-                        ]}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Critical Equipment</label>
-                      <CustomSelect
-                        value={form.critical_equipment}
-                        onChange={(v) => {
-                          setForm((f) => ({ ...f, critical_equipment: v }));
-                          if (fieldErrors.critical_equipment) setFieldErrors({...fieldErrors, critical_equipment: undefined});
-                        }}
-                        error={!!fieldErrors.critical_equipment}
-                        placeholder="Select priority"
-                        options={[
-                          { value: "yes", label: "Yes - High Priority" },
-                          { value: "no", label: "No - Normal Priority" },
-                        ]}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Sub-Unit Level Monitoring</label>
-                      <CustomSelect
-                        value={form.sub_unit_monitoring}
-                        onChange={(v) => {
-                          setForm((f) => ({ ...f, sub_unit_monitoring: v }));
-                          if (fieldErrors.sub_unit_monitoring) setFieldErrors({...fieldErrors, sub_unit_monitoring: undefined});
-                        }}
-                        error={!!fieldErrors.sub_unit_monitoring}
-                        placeholder="Select option"
-                        options={[
-                          { value: "yes", label: "Yes - Monitor sub-components" },
-                          { value: "no", label: "No - Equipment level only" },
-                        ]}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Baseline Consumption (kWh/day)</label>
-                      <input 
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={form.baseline_consumption} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, baseline_consumption: e.target.value }));
-                          if (fieldErrors.baseline_consumption) setFieldErrors({...fieldErrors, baseline_consumption: undefined});
-                        }} 
-                        placeholder="60"
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.baseline_consumption 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Energy Cost Rate (₹/kWh)</label>
-                      <input 
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.energy_cost_rate} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, energy_cost_rate: e.target.value }));
-                          if (fieldErrors.energy_cost_rate) setFieldErrors({...fieldErrors, energy_cost_rate: undefined});
-                        }} 
-                        placeholder="8.50"
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.energy_cost_rate 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Efficiency Target (%)</label>
-                      <input 
-                        type="number"
-                        step="1"
-                        min="0"
-                        max="100"
-                        value={form.efficiency_target} 
-                        onChange={(e) => {
-                          setForm((f) => ({ ...f, efficiency_target: e.target.value }));
-                          if (fieldErrors.efficiency_target) setFieldErrors({...fieldErrors, efficiency_target: undefined});
-                        }} 
-                        placeholder="85"
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                          fieldErrors.efficiency_target 
-                            ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                            : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                        }`} 
-                      />
+
+                    {/* Efficiency & Solar */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                        Efficiency & Solar Routing
+                      </h3>
+                      <div className="grid grid-cols-1 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm relative z-20">
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Phase Configuration</label>
+                          <CustomSelect
+                            value={form.phase}
+                            onChange={(v) => {
+                              setForm((f) => ({ ...f, phase: v }));
+                              if (fieldErrors.phase) setFieldErrors({...fieldErrors, phase: undefined});
+                            }}
+                            error={!!fieldErrors.phase}
+                            allowClear
+                            placeholder="Select phase mode"
+                            options={[
+                              { value: "single", label: "Single Phase" },
+                              { value: "three", label: "Three Phase" },
+                            ]}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Solar Compatibility Mode</label>
+                          <CustomSelect
+                            value={form.solar_compatible}
+                            onChange={(v) => {
+                              setForm((f) => ({ ...f, solar_compatible: v }));
+                              if (fieldErrors.solar_compatible) setFieldErrors({...fieldErrors, solar_compatible: undefined});
+                            }}
+                            error={!!fieldErrors.solar_compatible}
+                            allowClear
+                            placeholder="Select support"
+                            options={[
+                              { value: "yes", label: "Supported - Grid/Solar failover" },
+                              { value: "no", label: "Unsupported - Grid connection only" },
+                            ]}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Solar Priority Level</label>
+                          <CustomSelect
+                            value={form.solar_priority}
+                            onChange={(v) => {
+                              setForm((f) => ({ ...f, solar_priority: v }));
+                              if (fieldErrors.solar_priority) setFieldErrors({...fieldErrors, solar_priority: undefined});
+                            }}
+                            error={!!fieldErrors.solar_priority}
+                            allowClear
+                            placeholder="Assign priority"
+                            options={[
+                              { value: "high", label: "High (Run on solar first)" },
+                              { value: "medium", label: "Medium (Load balance)" },
+                              { value: "low", label: "Low (Only excess solar)" },
+                            ]}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Base Cost (₹/kWh)</label>
+                            <input 
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={form.energy_cost_rate} 
+                              onChange={(e) => {
+                                setForm((f) => ({ ...f, energy_cost_rate: e.target.value }));
+                                if (fieldErrors.energy_cost_rate) setFieldErrors({...fieldErrors, energy_cost_rate: undefined});
+                              }} 
+                              placeholder="8.50"
+                              className="w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 hover:border-yellow-500/30 focus:ring-yellow-500/30 focus:border-yellow-500/50 transition-all border-border/60" 
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Target Effic. (%)</label>
+                            <input 
+                              type="number"
+                              step="1"
+                              min="0"
+                              max="100"
+                              value={form.efficiency_target} 
+                              onChange={(e) => {
+                                setForm((f) => ({ ...f, efficiency_target: e.target.value }));
+                                if (fieldErrors.efficiency_target) setFieldErrors({...fieldErrors, efficiency_target: undefined});
+                              }} 
+                              placeholder="85"
+                              className="w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 hover:border-yellow-500/30 focus:ring-yellow-500/30 focus:border-yellow-500/50 transition-all border-border/60" 
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Solar Integration */}
-                <div className="border-t border-border/50 pt-4">
-                  <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                    Solar Integration
-                  </h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Solar Compatible</label>
-                      <CustomSelect
-                        value={form.solar_compatible}
-                        onChange={(v) => {
-                          setForm((f) => ({ ...f, solar_compatible: v }));
-                          if (fieldErrors.solar_compatible) setFieldErrors({...fieldErrors, solar_compatible: undefined});
-                        }}
-                        error={!!fieldErrors.solar_compatible}
-                        placeholder="Select option"
-                        options={[
-                          { value: "yes", label: "Yes - Can run on solar" },
-                          { value: "no", label: "No - Grid only" },
-                        ]}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-bold text-foreground mb-1.5">Solar Priority</label>
-                      <CustomSelect
-                        value={form.solar_priority}
-                        onChange={(v) => {
-                          setForm((f) => ({ ...f, solar_priority: v }));
-                          if (fieldErrors.solar_priority) setFieldErrors({...fieldErrors, solar_priority: undefined});
-                        }}
-                        error={!!fieldErrors.solar_priority}
-                        placeholder="Select priority"
-                        options={[
-                          { value: "high", label: "High Priority" },
-                          { value: "medium", label: "Medium Priority" },
-                          { value: "low", label: "Low Priority" },
-                        ]}
-                      />
+                  {/* System State Options */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                      Hardware Status
+                    </h3>
+                    <div className="p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: "active" })}
+                          className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
+                            form.status === "active"
+                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                              : "bg-background border-border/50 text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${form.status === "active" ? "bg-emerald-500 animate-pulse" : "bg-transparent"}`} />
+                            ONLINE
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: "inactive" })}
+                          className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
+                            form.status === "inactive"
+                              ? "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/50"
+                              : "bg-background border-border/50 text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${form.status === "inactive" ? "bg-slate-500" : "bg-transparent"}`} />
+                            OFFLINE
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: "maintenance" })}
+                          className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
+                            form.status === "maintenance"
+                              ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                              : "bg-background border-border/50 text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${form.status === "maintenance" ? "bg-amber-500 animate-pulse" : "bg-transparent"}`} />
+                            MAINTENANCE
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">Status</label>
-                  <CustomSelect
-                    value={form.status}
-                    onChange={(v) => setForm((f) => ({ ...f, status: v }))}
-                    options={[
-                      { value: "active", label: "Active" },
-                      { value: "inactive", label: "Inactive" },
-                      { value: "maintenance", label: "Maintenance" },
-                    ]}
-                  />
-                </div>
-                
+                  
                 </div>
                 
                 <div className="p-6 border-t border-border/50 bg-muted/20 flex gap-3 shrink-0 mt-auto">
-                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-2.5">Cancel</button>
-                  <button type="submit" disabled={saving} className="btn-primary flex-1 py-2.5">
-                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : editing ? "Update Machine" : "Add Machine"}
+                  <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 rounded-xl border border-border/60 bg-background hover:bg-muted text-sm font-bold text-foreground transition-all flex-1 md:flex-none">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-50 disabled:pointer-events-none flex-1 md:flex-none flex items-center justify-center gap-2 ml-auto">
+                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning Node...</> : editing ? "Deploy Overrides" : "Initialize Machine"}
                   </button>
                 </div>
               </form>
