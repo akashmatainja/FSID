@@ -270,88 +270,134 @@ export default function CompaniesPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/20">
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Company</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Slug</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Branches</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Equipment</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
+                  <th className="p-4 pl-6 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Organization Details</th>
+                  <th className="p-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Network Span</th>
+                  <th className="p-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Equipment Load</th>
+                  <th className="p-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">System Status</th>
+                  <th className="p-4 pr-6 text-right text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/50">
+              <tbody className="divide-y divide-border/30">
                 {paginatedCompanies.map((company, index) => (
                   <motion.tr
                     key={company.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="hover:bg-muted/10 transition-colors"
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => handleView(company)}
+                    className="group hover:bg-muted/10 transition-colors cursor-pointer relative"
                   >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/20">
-                          <Building2 className="w-5 h-5 text-white" />
+                    <td className="p-4 pl-6 relative">
+                      {/* Active Status Left Indicator */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] opacity-0 group-hover:opacity-100 transition-opacity ${
+                        company.status === 'active' ? 'bg-brand-500' :
+                        company.status === 'suspended' ? 'bg-red-500' : 'bg-slate-500'
+                      }`} />
+                      <div className="flex items-center gap-4">
+                        <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 overflow-hidden transition-colors ${
+                          company.status === 'active' ? 'bg-brand-500/10 border-brand-500/20 text-brand-500' :
+                          company.status === 'suspended' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                        }`}>
+                          <Building2 className="w-5 h-5 z-10 relative group-hover:scale-110 transition-transform" />
+                          {company.status === 'active' && (
+                            <div className="absolute inset-0 bg-brand-500/20 blur-md animate-pulse" />
+                          )}
                         </div>
-                        <span className="font-bold text-foreground">{company.name}</span>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-foreground text-sm group-hover:text-brand-500 transition-colors">
+                              {company.name}
+                            </span>
+                            {company.status === 'active' ? (
+                              <span className="relative flex h-2 w-2" title="Active">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+                              </span>
+                            ) : (
+                              <span className={`w-2 h-2 rounded-full ${company.status === 'suspended' ? 'bg-red-500' : 'bg-slate-500'}`} title={company.status} />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                            <span>@{company.slug}</span>
+                            <span className="w-1 h-1 rounded-full bg-border" />
+                            <span className="flex items-center gap-1.5 font-sans">
+                              <Calendar className="w-3 h-3 text-brand-500/50" />
+                              {new Date(company.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-muted-foreground font-mono">@{company.slug}</span>
+
+                    <td className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-500 shrink-0">
+                              <MapPin className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-bold text-foreground">{(company as any).branch_count || 0}</span>
+                            <span className="text-xs text-muted-foreground font-medium">Nodes</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-blue-500 shrink-0">
+                              <Users className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-bold text-foreground">{company.user_count || 0}</span>
+                            <span className="text-xs text-muted-foreground font-medium">Users</span>
+                          </div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-foreground">{(company as any).branch_count || 0}</span>
+
+                    <td className="p-4">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-lg font-bold text-foreground font-mono tracking-tight">{company.machine_count || 0}</span>
+                        <span className="text-xs text-brand-500 font-bold tracking-widest uppercase">Machines</span>
+                      </div>
+                      <div className="text-[10px] px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider inline-flex mt-1">
+                        Active Monitoring
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-foreground">{company.user_count || 0}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-foreground">{company.machine_count || 0}</span>
-                    </td>
-                    <td className="px-6 py-4">
+
+                    <td className="p-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
                           company.status === "active"
-                            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20"
+                            ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border-brand-500/20"
                             : company.status === "suspended"
-                            ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20"
-                            : "bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-500/20"
+                            ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+                            : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20"
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                          company.status === "active" ? "bg-emerald-500" :
+                          company.status === "active" ? "bg-brand-500" :
                           company.status === "suspended" ? "bg-red-500" : "bg-slate-500"
                         }`}></span>
                         {company.status === "active" ? "ACTIVE" : company.status === "suspended" ? "SUSPENDED" : "TRIAL"}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(company.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+
+                    <td className="p-4 pr-6 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" onClick={(e) => e.stopPropagation()}>
                         <button 
                           onClick={() => handleView(company)}
-                          className="p-2 rounded-lg text-muted-foreground hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
-                          title="View"
+                          className="p-1.5 rounded-lg bg-brand-500/10 text-brand-600 hover:bg-brand-500 hover:text-white border border-transparent hover:border-brand-500/20 transition-all"
+                          title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => openEditModal(company)}
-                          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="Edit"
+                          className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 border border-transparent transition-all"
+                          title="Edit Settings"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => openDeleteModal(company)}
-                          className="p-2 rounded-lg text-red-500/80 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
-                          title="Delete"
+                          className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-500/20 transition-all"
+                          title="Terminate Account"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -381,94 +427,121 @@ export default function CompaniesPage() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative glass-card p-0 w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+              className="relative glass-card p-0 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-brand-500/20"
             >
-              <div className="p-6 border-b border-border/50 bg-muted/20 flex items-center gap-3 shrink-0">
-                <div className="w-10 h-10 bg-brand-500/10 rounded-xl flex items-center justify-center border border-brand-500/20">
-                  <Building2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+              {/* Header with glowing effect */}
+              <div className="relative p-6 border-b border-border/50 bg-muted/20 flex items-center gap-4 overflow-hidden shrink-0">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-500 to-transparent opacity-50" />
+                <div className="relative w-12 h-12 bg-brand-500/10 rounded-2xl flex items-center justify-center border border-brand-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                  <Building2 className="w-6 h-6 text-brand-500" />
+                  <div className="absolute inset-0 bg-brand-500/20 blur-md animate-pulse rounded-2xl" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">
-                  {editingCompany ? "Edit Company" : "Register Company"}
-                </h2>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    {editingCompany ? "Modify Enterprise Configuration" : "Initialize New Organization"}
+                  </h2>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Define high-level organizational structure and tracking slug.
+                  </p>
+                </div>
               </div>
               
               <form onSubmit={handleSave} className="flex flex-col overflow-hidden flex-1" noValidate>
-                <div className="p-6 overflow-y-auto space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">
-                    Company Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="e.g. Acme Corporation"
-                    className={`w-full px-4 py-2.5 rounded-xl border bg-card/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
-                      fieldErrors.name 
-                        ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                        : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                    }`}
-                  />
-                  {fieldErrors.name && <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.name}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">
-                    URL Slug <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className={`absolute left-4 text-sm ${fieldErrors.slug ? 'text-red-500' : 'text-muted-foreground'}`}>@</span>
-                    <input
-                      type="text"
-                      value={form.slug}
-                      onChange={(e) => {
-                        setForm({ ...form, slug: e.target.value });
-                        if (fieldErrors.slug) setFieldErrors({...fieldErrors, slug: undefined});
-                      }}
-                      placeholder="acme-corp"
-                      className={`w-full pl-8 pr-4 py-2.5 rounded-xl border bg-card/50 text-sm font-mono font-medium focus:outline-none focus:ring-2 transition-all ${
-                        fieldErrors.slug 
-                          ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
-                          : 'border-border/60 focus:ring-brand-500/30 focus:border-brand-500/50'
-                      }`}
-                    />
+                <div className="p-6 overflow-y-auto space-y-8 bg-gradient-to-b from-transparent to-muted/5">
+                  
+                  {/* Identity Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                      Global Identity
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm">
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                          Enterprise Name <span className="text-brand-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.name}
+                          onChange={(e) => handleNameChange(e.target.value)}
+                          placeholder="e.g. Acme Corporation"
+                          className={`w-full px-4 py-3 rounded-xl border bg-background/50 text-sm font-medium focus:outline-none focus:ring-2 transition-all ${
+                            fieldErrors.name 
+                              ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                              : 'border-border/60 hover:border-brand-500/30 focus:ring-brand-500/30 focus:border-brand-500/50'
+                          }`}
+                        />
+                        {fieldErrors.name && <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.name}</p>}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                          Network Prefix <span className="text-brand-500">*</span>
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className={`absolute left-4 text-sm font-mono font-bold ${fieldErrors.slug ? 'text-red-500' : 'text-brand-500'}`}>@</span>
+                          <input
+                            type="text"
+                            value={form.slug}
+                            onChange={(e) => {
+                              setForm({ ...form, slug: e.target.value });
+                              if (fieldErrors.slug) setFieldErrors({...fieldErrors, slug: undefined});
+                            }}
+                            placeholder="acme-corp"
+                            className={`w-full pl-8 pr-4 py-3 rounded-xl border bg-background/50 text-sm font-mono font-medium focus:outline-none focus:ring-2 transition-all ${
+                              fieldErrors.slug 
+                                ? 'border-red-500/50 focus:ring-red-500/30 focus:border-red-500' 
+                                : 'border-border/60 hover:border-brand-500/30 focus:ring-brand-500/30 focus:border-brand-500/50'
+                            }`}
+                          />
+                        </div>
+                        {fieldErrors.slug ? (
+                          <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.slug}</p>
+                        ) : (
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1.5 ml-1">
+                            Unique identifier used for routing.
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {fieldErrors.slug ? (
-                    <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.slug}</p>
-                  ) : (
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1.5 ml-1">
-                      Unique identifier
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-foreground mb-1.5">
-                    Account Status
-                  </label>
-                  <CustomSelect
-                    value={form.status}
-                    onChange={(v) => setForm({ ...form, status: v })}
-                    options={[
-                      { value: "active", label: "Active (Full Access)" },
-                      { value: "trial", label: "Trial (Limited Time)" },
-                      { value: "suspended", label: "Suspended (No Access)" },
-                    ]}
-                  />
-                </div>
+
+                  {/* Access Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                      Operations Mode
+                    </h3>
+                    <div className="p-5 rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm relative z-30">
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Account Access Level
+                      </label>
+                      <CustomSelect
+                        value={form.status}
+                        onChange={(v) => setForm({ ...form, status: v })}
+                        options={[
+                          { value: "active", label: "Active (Unrestricted System Access)" },
+                          { value: "trial", label: "Trial (Limited Node Availability)" },
+                          { value: "suspended", label: "Suspended (Network Blocked)" },
+                        ]}
+                      />
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="p-6 border-t border-border/50 bg-muted/20 flex gap-3 shrink-0 mt-auto">
-                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1 py-2.5">
+                  <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 rounded-xl border border-border/60 bg-background hover:bg-muted text-sm font-bold text-foreground transition-all flex-1 md:flex-none">
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn-primary flex-1 py-2.5"
+                    className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold shadow-lg shadow-brand-500/20 hover:shadow-brand-500/40 transition-all disabled:opacity-50 disabled:pointer-events-none flex-1 md:flex-none flex items-center justify-center gap-2 ml-auto"
                   >
                     {saving ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> {editingCompany ? "Updating..." : "Creating..."}</>
+                      <><Loader2 className="w-4 h-4 animate-spin" /> {editingCompany ? "Committing..." : "Deploying..."}</>
                     ) : (
-                      editingCompany ? "Update Company" : "Create Company"
+                      editingCompany ? "Deploy Configuration" : "Initialize Environment"
                     )}
                   </button>
                 </div>
