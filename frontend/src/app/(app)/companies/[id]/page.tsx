@@ -107,7 +107,7 @@ export default function CompanyDetailPage() {
           </button>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{company.name}</h1>
-            <p className="text-sm font-medium text-muted-foreground mt-1">Energy Monitoring</p>
+            <p className="text-sm font-medium text-muted-foreground mt-1">FSID</p>
           </div>
         </div>
         

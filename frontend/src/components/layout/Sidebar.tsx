@@ -84,7 +84,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               className="flex flex-col relative z-10"
             >
               <span className="font-bold text-base tracking-tight text-foreground">
-                Energy Monitoring
+                FSID
               </span>
               <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
                 Enterprise
