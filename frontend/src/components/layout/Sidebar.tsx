@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/components/providers/ModuleAccessProvider";
+import { GATEWAY_ENABLED } from "@/lib/features";
 
 interface NavItem {
   href?: string;
@@ -30,7 +31,8 @@ const nav: NavItem[] = [
   ]},
   { href: "/modules",       label: "Modules",     icon: Package, permission: "superadmin" },
   { href: "/machines",      label: "Machines",    icon: Cpu, permission: "machines.read", hideForSuperadmin: true },
-  { href: "/gateways",      label: "Gateways",    icon: Router, permission: "machines.read", hideForSuperadmin: true },
+  // OPC UA gateways: hidden until the client approves them (see lib/features.ts)
+  ...(GATEWAY_ENABLED ? [{ href: "/gateways", label: "Gateways", icon: Router, permission: "machines.read", hideForSuperadmin: true }] : []),
   { href: "/logs",          label: "Data Logs",   icon: FileClock, permission: null }, // rows are scoped server-side
   // Expert Guided Remote Maintenance (Remote Camera) moved to a separate site.
   // { href: "/remote-camera", label: "Remote Camera", icon: Video, permission: null },

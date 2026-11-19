@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, Package, Trash2, ChevronDown, ChevronUp, Zap, Wind, Activity, Shield, Brain, Edit2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { GATEWAY_ENABLED } from "@/lib/features";
 import { useAuth } from "@/contexts/AuthContext";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import type { Module, ModuleMetric } from "@/types";
@@ -85,6 +86,7 @@ function LimitInputs({ form, onChange }: { form: MetricForm; onChange: (f: Metri
         </label>
       ))}
       <span className="text-xs text-muted-foreground">Leave blank to skip. Order: crit min ≤ warn min ≤ warn max ≤ crit max.</span>
+      {GATEWAY_ENABLED && (
       <label className="basis-full flex flex-wrap items-center gap-2 pt-1">
         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">OPC UA node template</span>
         <input
@@ -97,6 +99,7 @@ function LimitInputs({ form, onChange }: { form: MetricForm; onChange: (f: Metri
           Placeholders: {"{machine_code}"}, {"{machine_name}"}, {"{metric_code}"}. Machines can override it on their own page. Empty = set per machine.
         </span>
       </label>
+      )}
     </div>
   );
 }

@@ -1,19 +1,18 @@
 package main
 
-// OPC UA Simulator — generates realistic random metric data for every machine.
+// Demo data simulator — generates realistic, slowly changing values for every
+// machine's module metrics while the OPC UA edge gateway (gateway/) is not in use.
 //
-// Flow:
-//   PLC / OPC UA server
-//       ↓  (replace simulationLoop body with real opcua.Client reads)
-//   simulationLoop  → every 5 s → hub.GlobalHub.Broadcast (WebSocket → dashboard)
-//                             → dbBuf (in-memory, flushed to DB every 30 min)
+//   every 1 s   new values → hub.GlobalHub.Broadcast (live dashboards)
+//   every 1 min one sample per metric is written to machine_stats (charts,
+//               Data Logs, health score) and checked by alerts.Evaluate
+//   every 5 min the machine list is reloaded, so new machines/metrics appear without a restart
 //
-// To switch to real OPC UA:
-//   1. Add "github.com/gopcua/opcua" to go.mod
-//   2. Replace the random-walk block in simulationLoop with actual Node reads.
+// Enabled by SIMULATOR_ENABLED (default true). Machines assigned to a gateway
+// (machine_opcua.gateway_id) are skipped, so real and simulated data never mix.
+// When the gateway goes live for everyone, set SIMULATOR_ENABLED=false.
 
 import (
-	"github.com/companyuser/backend/alerts"
 	"log"
 	"math"
 	"math/rand"
@@ -21,10 +20,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/companyuser/backend/alerts"
 	"github.com/companyuser/backend/database"
 	"github.com/companyuser/backend/hub"
 	"github.com/companyuser/backend/models"
 	"github.com/google/uuid"
+)
+
+const (
+	simLiveInterval    = 1 * time.Second
+	simStoreInterval   = time.Minute // one stored sample per metric per minute
+	simReloadInterval  = 5 * time.Minute
+	simCyclePeriodMins = 30.0 // slow sinusoidal drift period
 )
 
 // metricCfg holds simulation parameters for one metric type.
@@ -65,152 +72,179 @@ func cfgFor(key string) metricCfg {
 
 // simState tracks current simulated values for one machine.
 type simState struct {
-	machineID string
-	companyID string
+	machineID uuid.UUID
+	companyID uuid.UUID
 	values    map[string]float64    // metricKey → current simulated value
-	metrics   []models.ModuleMetric // all active module metrics for this machine
+	phase     map[string]float64    // metricKey → drift phase, so machines don't move in lockstep
+	metrics   []models.ModuleMetric // active module metrics (deduplicated by code)
 }
 
-// DB write buffer — accumulated in memory and flushed every 30 minutes.
+// DB write buffer — flushed every minute.
 var (
 	dbBuf   []models.MachineStat
 	dbBufMu sync.Mutex
 )
 
-// StartOPCUASimulator loads machines from the DB and starts background goroutines.
-// Call once from main() after the hub is running.
+// StartOPCUASimulator starts the demo data generator. Call once from main()
+// after the hub is running.
 func StartOPCUASimulator() {
+	go simulationLoop()
+}
+
+// gatewayMachines returns machines read by a real OPC UA gateway. Errors (e.g.
+// add_opcua_gateways.sql not applied yet) mean "none".
+func gatewayMachines() map[uuid.UUID]bool {
+	var ids []uuid.UUID
+	if err := database.DB.Raw("SELECT machine_id FROM machine_opcua WHERE gateway_id IS NOT NULL").Scan(&ids).Error; err != nil {
+		return nil
+	}
+	set := make(map[uuid.UUID]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set
+}
+
+// loadStates builds the machine list, keeping current values for machines that
+// were already being simulated.
+func loadStates(prev map[uuid.UUID]*simState) (map[uuid.UUID]*simState, error) {
 	var machines []models.Machine
 	if err := database.DB.Preload("Modules.Metrics").Find(&machines).Error; err != nil {
-		log.Printf("[SIM] cannot load machines: %v", err)
-		return
+		return prev, err
 	}
+	skip := gatewayMachines()
 
-	states := make([]*simState, 0, len(machines))
+	next := make(map[uuid.UUID]*simState, len(machines))
 	for _, m := range machines {
-		st := &simState{
-			machineID: m.ID.String(),
-			companyID: m.CompanyID.String(),
-			values:    make(map[string]float64),
+		if skip[m.ID] {
+			continue
 		}
+		st := prev[m.ID]
+		if st == nil {
+			st = &simState{machineID: m.ID, companyID: m.CompanyID, values: map[string]float64{}, phase: map[string]float64{}}
+		}
+		st.metrics = st.metrics[:0]
+		seen := map[string]bool{}
 		for _, mod := range m.Modules {
-			if !mod.IsActive {
+			if !mod.IsActive || strings.EqualFold(mod.Code, "remote_maintenance") {
 				continue
 			}
 			for _, metric := range mod.Metrics {
 				key := strings.ToLower(metric.Code)
-				st.values[key] = cfgFor(key).base
+				if key == "" || seen[key] {
+					continue
+				}
+				seen[key] = true
+				if _, ok := st.values[key]; !ok {
+					st.values[key] = cfgFor(key).base * (1 + (rand.Float64()*2-1)*0.03)
+					st.phase[key] = rand.Float64() * 2 * math.Pi
+				}
 				st.metrics = append(st.metrics, metric)
 			}
 		}
 		if len(st.metrics) > 0 {
-			states = append(states, st)
+			next[m.ID] = st
 		}
 	}
-
-	if len(states) == 0 {
-		log.Println("[SIM] no machines with active module metrics — simulator idle")
-		return
-	}
-	log.Printf("[SIM] started: simulating %d machine(s)", len(states))
-
-	go dbFlushLoop()
-	go simulationLoop(states)
+	return next, nil
 }
 
-// simulationLoop ticks every 1 minute, generates new values, broadcasts, and buffers.
-func simulationLoop(states []*simState) {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
+// nextValue moves a metric towards a slowly drifting target with a little
+// noise, clamped to ±25 % of its base value. Pull and noise are scaled to the
+// tick length, so changing simLiveInterval keeps the same overall behaviour.
+func nextValue(prev float64, cfg metricCfg, phase float64, now time.Time) float64 {
+	k := simLiveInterval.Seconds() / 5 // tuned for 5 s ticks
+	pull := 1 - math.Pow(1-0.15, k)
+	mins := float64(now.UnixMilli()) / 60000
+	target := cfg.base * (1 + 0.08*math.Sin(2*math.Pi*mins/simCyclePeriodMins+phase))
+	noise := (rand.Float64()*2 - 1) * cfg.base * cfg.noise * 0.15 * math.Sqrt(k)
+	next := prev + pull*(target-prev) + noise
+	next = math.Max(cfg.base*0.75, math.Min(cfg.base*1.25, next))
+	return math.Round(next*1000) / 1000
+}
 
-	step := 0
-	for range ticker.C {
-		step++
+func simulationLoop() {
+	states, err := loadStates(nil)
+	if err != nil {
+		log.Printf("[SIM] cannot load machines: %v", err)
+	}
+	log.Printf("[SIM] started: simulating %d machine(s), live every %s, stored every %s", len(states), simLiveInterval, simStoreInterval)
+
+	live := time.NewTicker(simLiveInterval)
+	store := time.NewTicker(simStoreInterval)
+	reload := time.NewTicker(simReloadInterval)
+	defer live.Stop()
+	defer store.Stop()
+	defer reload.Stop()
+
+	storeDue := true // store the first sample right away
+	for {
+		select {
+		case <-reload.C:
+			if fresh, err := loadStates(states); err != nil {
+				log.Printf("[SIM] reload failed: %v", err)
+			} else {
+				if len(fresh) != len(states) {
+					log.Printf("[SIM] now simulating %d machine(s)", len(fresh))
+				}
+				states = fresh
+			}
+			continue
+		case <-store.C:
+			storeDue = true
+			flushToDB() // writes the samples buffered on the previous minute
+			continue
+		case <-live.C:
+		}
+
 		now := time.Now().UTC()
-
+		var toStore []models.MachineStat
 		for _, st := range states {
 			payloads := make([]hub.MetricPayload, 0, len(st.metrics))
-
 			for _, metric := range st.metrics {
 				key := strings.ToLower(metric.Code)
 				cfg := cfgFor(key)
+				v := nextValue(st.values[key], cfg, st.phase[key], now)
+				st.values[key] = v
 
-				// ── Random-walk with sinusoidal drift for realism ──────────
-				prev := st.values[key]
-				sinDrift := math.Sin(float64(step)*0.25) * cfg.base * 0.02
-				noiseDelta := (rand.Float64()*2 - 1) * cfg.base * cfg.noise
-				next := prev + sinDrift + noiseDelta
-
-				// Clamp to ±25 % of base
-				lo := cfg.base * 0.75
-				hi := cfg.base * 1.25
-				if next < lo {
-					next = lo
-				}
-				if next > hi {
-					next = hi
-				}
-				next = math.Round(next*1000) / 1000
-				st.values[key] = next
-
-				// Use DB-stored unit if available, else fall back to known map
 				unit := cfg.unit
 				if metric.Unit != "" {
 					unit = metric.Unit
 				}
-
 				payloads = append(payloads, hub.MetricPayload{
-					MachineID:   st.machineID,
-					CompanyID:   st.companyID,
+					MachineID:   st.machineID.String(),
+					CompanyID:   st.companyID.String(),
 					MetricKey:   key,
-					MetricValue: next,
+					MetricValue: v,
 					Timestamp:   now,
 					Unit:        unit,
 					Source:      "opcua_sim",
 				})
-			}
-
-			if len(payloads) == 0 {
-				continue
-			}
-
-			// ① Real-time: push to WebSocket clients immediately
-			hub.GlobalHub.Broadcast(st.machineID, payloads)
-
-			// Limit checks run on live values, not on the delayed DB flush
-			if mid, err := uuid.Parse(st.machineID); err == nil {
-				for _, p := range payloads {
-					alerts.Evaluate(alerts.Reading{MachineID: mid, MetricKey: p.MetricKey, Value: p.MetricValue, Ts: p.Timestamp})
+				if storeDue {
+					// Alerts follow the stored samples (once a minute), so a value
+					// hovering at a limit doesn't open/close an alert every second.
+					alerts.Evaluate(alerts.Reading{MachineID: st.machineID, MetricKey: key, Value: v, Ts: now})
+					toStore = append(toStore, models.MachineStat{
+						ID:          uuid.New(),
+						CompanyID:   st.companyID,
+						MachineID:   st.machineID,
+						Ts:          now,
+						MetricKey:   key,
+						MetricValue: v,
+						Meta:        map[string]any{"unit": unit, "source": "opcua_sim"},
+					})
 				}
 			}
-
-			// ② Persistence: buffer for 30-minute DB flush
-			machineID, _ := uuid.Parse(st.machineID)
-			companyID, _ := uuid.Parse(st.companyID)
-
-			dbBufMu.Lock()
-			for _, p := range payloads {
-				dbBuf = append(dbBuf, models.MachineStat{
-					ID:          uuid.New(),
-					CompanyID:   companyID,
-					MachineID:   machineID,
-					Ts:          p.Timestamp,
-					MetricKey:   p.MetricKey,
-					MetricValue: p.MetricValue,
-					Meta:        map[string]any{"unit": p.Unit, "source": p.Source},
-				})
+			if len(payloads) > 0 {
+				hub.GlobalHub.Broadcast(st.machineID.String(), payloads)
 			}
+		}
+		if storeDue {
+			storeDue = false
+			dbBufMu.Lock()
+			dbBuf = append(dbBuf, toStore...)
 			dbBufMu.Unlock()
 		}
-	}
-}
-
-// dbFlushLoop triggers a DB write every 30 minutes.
-func dbFlushLoop() {
-	ticker := time.NewTicker(30 * time.Minute)
-	defer ticker.Stop()
-	for range ticker.C {
-		flushToDB()
 	}
 }
 
@@ -239,5 +273,7 @@ func flushToDB() {
 			total += end - i
 		}
 	}
-	log.Printf("[SIM] flushed %d stats to DB", total)
+	if total < len(batch) {
+		log.Printf("[SIM] stored %d of %d stats", total, len(batch))
+	}
 }

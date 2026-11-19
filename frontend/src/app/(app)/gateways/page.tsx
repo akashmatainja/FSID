@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime, relativeTime } from "@/lib/utils";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import type { Gateway } from "@/types";
+import { GATEWAY_ENABLED } from "@/lib/features";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -110,6 +111,19 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 export default function GatewaysPage() {
+  if (!GATEWAY_ENABLED) {
+    return (
+      <div className="glass-card p-10 text-center max-w-xl mx-auto mt-10">
+        <Router className="w-10 h-10 mx-auto mb-3 text-muted-foreground/60" />
+        <h1 className="text-lg font-extrabold text-foreground mb-1">OPC UA gateways aren&apos;t enabled yet</h1>
+        <p className="text-sm text-muted-foreground">Machines currently show simulated demo data.</p>
+      </div>
+    );
+  }
+  return <GatewaysView />;
+}
+
+function GatewaysView() {
   const { permissions } = useAuth();
   const canWrite = !!permissions["machines.write"];
 

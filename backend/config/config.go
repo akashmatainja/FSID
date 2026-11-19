@@ -28,6 +28,9 @@ type Config struct {
 	OPCUAEndpoint string
 	OPCUAUsername string
 	OPCUAPassword string
+
+	// Demo data simulator (simulator.go). On until the OPC UA gateway goes live.
+	SimulatorEnabled bool
 }
 
 var Cfg Config
@@ -53,6 +56,8 @@ func Load() {
 		OPCUAEndpoint: getOr("OPCUA_ENDPOINT", "opc.tcp://146.196.46.162:4840/abhipsita/abexon"), // TODO: make dynamic; only used by the in-process client (StartOPCUAClient)
 		OPCUAUsername: getOr("OPCUA_USERNAME", ""),
 		OPCUAPassword: getOr("OPCUA_PASSWORD", ""),
+
+		SimulatorEnabled: getOr("SIMULATOR_ENABLED", "true") != "false",
 	}
 }
 

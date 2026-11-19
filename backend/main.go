@@ -36,6 +36,14 @@ func main() {
 	// hub.GlobalSignaling = hub.NewSignalingHub()
 	// go hub.GlobalSignaling.Run()
 
+	// Demo data: simulated live values for every machine until the client
+	// approves the OPC UA gateway. Turn off with SIMULATOR_ENABLED=false.
+	if config.Cfg.SimulatorEnabled {
+		StartOPCUASimulator()
+	} else {
+		log.Println("[SIM] disabled (SIMULATOR_ENABLED=false)")
+	}
+
 	// Start real OPC UA client for machine data ingestion
 	// Disabled - server endpoint not accessible
 	// go StartOPCUAClient()

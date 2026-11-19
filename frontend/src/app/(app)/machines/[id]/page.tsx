@@ -20,6 +20,7 @@ import { METRIC_COLORS, METRIC_UNITS, type DateRange, type MetricKey } from "@/t
 import { getDateRangeFrom } from "@/lib/utils";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import OpcuaMappingCard from "@/components/machines/OpcuaMappingCard";
+import { GATEWAY_ENABLED } from "@/lib/features";
 
 const DATE_RANGES: { label: string; value: DateRange }[] = [
   { label: "15m", value: "15m" }, { label: "1h", value: "1h" },
@@ -740,7 +741,9 @@ export default function MachineDetailPage() {
       </motion.div>
 
       {/* Live data source: which OPC UA gateway reads this machine, and which nodes */}
-      <OpcuaMappingCard machineId={machineId} companyId={machine.company_id} canEdit={!!canManageAssignments} />
+      {GATEWAY_ENABLED && (
+        <OpcuaMappingCard machineId={machineId} companyId={machine.company_id} canEdit={!!canManageAssignments} />
+      )}
 
       {/* Assigned Users */}
       <motion.div
