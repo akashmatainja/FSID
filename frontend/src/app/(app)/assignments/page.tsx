@@ -163,13 +163,13 @@ export default function AssignmentsPage() {
                   {/* Context chips */}
                   <div className="flex flex-wrap items-center gap-2">
                     {user.company && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/50 truncate max-w-[120px]">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/50 truncate max-w-[120px]">
                         <Building2 className="w-3 h-3 text-brand-500" />
                         {user.company.name}
                       </span>
                     )}
                     {user.branch && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/50 truncate max-w-[120px]">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/50 truncate max-w-[120px]">
                         <MapPin className="w-3 h-3 text-purple-500" />
                         {user.branch.name}
                       </span>
@@ -194,7 +194,7 @@ export default function AssignmentsPage() {
                           setRoleError("");
                           setShowRoleModal(true); 
                         }}
-                        className="text-[10px] font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 bg-brand-50 dark:bg-brand-500/10 px-2 py-1 rounded-md transition-colors"
+                        className="text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 bg-brand-50 dark:bg-brand-500/10 px-2 py-1 rounded-md transition-colors"
                       >
                         + Assign
                       </button>
@@ -226,7 +226,7 @@ export default function AssignmentsPage() {
                       ))}
                       {(!user.user_roles || user.user_roles.length === 0) && (
                         <motion.div className="px-3 py-1.5 rounded-lg border border-dashed border-border text-center">
-                          <p className="text-[10px] font-medium text-muted-foreground italic">No roles</p>
+                          <p className="text-xs font-medium text-muted-foreground italic">No roles</p>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -250,7 +250,7 @@ export default function AssignmentsPage() {
                           setMachineError("");
                           setShowMachineModal(true); 
                         }}
-                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md transition-colors"
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md transition-colors"
                       >
                         + Grant
                       </button>
@@ -282,7 +282,7 @@ export default function AssignmentsPage() {
                       ))}
                       {(!user.machine_assignments || user.machine_assignments.length === 0) && (
                         <motion.div className="px-3 py-1.5 rounded-lg border border-dashed border-border text-center">
-                          <p className="text-[10px] font-medium text-muted-foreground italic">No machines</p>
+                          <p className="text-xs font-medium text-muted-foreground italic">No machines</p>
                         </motion.div>
                       )}
                     </AnimatePresence>

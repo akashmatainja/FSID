@@ -220,7 +220,7 @@ export default function CompanyDetailPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="data-table w-full">
               <thead>
                 <tr className="border-b border-border/50">
                   <th className="text-left py-2 px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Branch</th>

@@ -45,6 +45,15 @@ func init() {
 	})
 
 	// ── Protected API routes ──────────────────────────────────────────────────
+	// Legacy OPC UA batch ingest — requires a gateway API key
+	app.Post("/opcua/ingest", middleware.GatewayAuth(), handlers.IngestOPCUAData)
+
+	// OPC UA edge gateways (API-key auth, see gateway/README.md)
+	gw := app.Group("/gateway/v1", middleware.GatewayAuth())
+	gw.Get("/config", handlers.GatewayConfig)
+	gw.Post("/ingest", handlers.GatewayIngest)
+	gw.Post("/status", handlers.GatewayStatus)
+
 	api := app.Group("/api/v1", middleware.JWTAuth(config.Cfg.JWTSecret))
 
 	// Auth routes
@@ -52,6 +61,26 @@ func init() {
 
 	// Dashboard
 	api.Get("/dashboard/summary", handlers.GetDashboardSummary)
+	api.Get("/dashboard/overview", handlers.GetDashboardOverview)
+	api.Get("/predictive/health", handlers.GetPredictiveHealth)
+	api.Get("/predictive/health/history", handlers.GetPredictiveHealthHistory)
+
+	// Alerts (limit breaches), scoped to the machines the caller can monitor
+	api.Get("/alerts", handlers.ListAlerts)
+	api.Post("/alerts/:id/acknowledge", handlers.AcknowledgeAlert)
+
+	// Historical reading logs (time-range queries + CSV export), scoped like alerts
+	api.Get("/logs/readings", handlers.ListReadingLogs)
+	api.Get("/logs/readings/export", handlers.ExportReadingLogs)
+
+	// OPC UA edge gateways (admin) and per-machine node mapping
+	api.Get("/gateways", handlers.ListGateways)
+	api.Post("/gateways", middleware.RequirePermission("machines.write"), handlers.CreateGateway)
+	api.Put("/gateways/:id", middleware.RequirePermission("machines.write"), handlers.UpdateGateway)
+	api.Post("/gateways/:id/rotate-key", middleware.RequirePermission("machines.write"), handlers.RotateGatewayKey)
+	api.Delete("/gateways/:id", middleware.RequirePermission("machines.write"), handlers.DeleteGateway)
+	api.Get("/machines/:id/opcua", handlers.GetMachineOPCUA)
+	api.Put("/machines/:id/opcua", middleware.RequirePermission("machines.write"), handlers.UpdateMachineOPCUA)
 
 	// Companies (superadmin only)
 	api.Get("/companies", middleware.RequirePermission("superadmin"), handlers.ListCompanies)
@@ -65,7 +94,7 @@ func init() {
 	api.Get("/machines", handlers.ListMachines)
 	api.Get("/machines/:id", handlers.GetMachine)
 	api.Post("/machines", middleware.RequirePermission("machines.write"), handlers.CreateMachine)
-	api.Put("/machines/:id", middleware.RequirePermission("machines.write"), handlers.UpdateMachine)
+	api.Put("/machines/:id", middleware.RequirePermission("machines.write"), handlers.InvalidateAlertRules, handlers.UpdateMachine)
 	api.Delete("/machines/:id", middleware.RequirePermission("machines.write"), handlers.DeleteMachine)
 	api.Get("/machines/:id/stats", handlers.GetMachineStats)
 	api.Post("/machines/:id/stats", middleware.RequirePermission("stats.write"), handlers.IngestMachineStat)
@@ -73,8 +102,8 @@ func init() {
 	api.Post("/machines/:id/users", middleware.RequirePermission("machines.write"), handlers.AssignUserToMachine)
 	api.Delete("/machines/:id/users/:user_id", middleware.RequirePermission("machines.write"), handlers.UnassignUserFromMachine)
 	api.Get("/machines/:id/modules", handlers.GetMachineModules)
-	api.Post("/machines/:id/modules", middleware.RequirePermission("machines.write"), handlers.AssignModuleToMachine)
-	api.Delete("/machines/:id/modules/:module_id", middleware.RequirePermission("machines.write"), handlers.UnassignModuleFromMachine)
+	api.Post("/machines/:id/modules", middleware.RequirePermission("machines.write"), handlers.InvalidateAlertRules, handlers.AssignModuleToMachine)
+	api.Delete("/machines/:id/modules/:module_id", middleware.RequirePermission("machines.write"), handlers.InvalidateAlertRules, handlers.UnassignModuleFromMachine)
 
 	// Users
 	api.Get("/users/me", handlers.GetMe)
@@ -109,11 +138,11 @@ func init() {
 	api.Get("/modules/active", handlers.ListActiveModules)
 	api.Get("/modules", handlers.ListModules)
 	api.Get("/modules/:id", handlers.GetModule)
-	api.Put("/modules/:id/toggle", handlers.ToggleModule)
+	api.Put("/modules/:id/toggle", handlers.InvalidateAlertRules, handlers.ToggleModule)
 	api.Get("/modules/:id/metrics", handlers.ListModuleMetrics)
 	api.Post("/modules/:id/metrics", handlers.CreateModuleMetric)
 	api.Put("/modules/:id/metrics/:metric_id", handlers.UpdateModuleMetric)
-	api.Delete("/modules/:id/metrics/:metric_id", handlers.DeleteModuleMetric)
+	api.Delete("/modules/:id/metrics/:metric_id", handlers.InvalidateAlertRules, handlers.DeleteModuleMetric)
 
 	// Assignments
 	api.Post("/assignments/roles", middleware.RequirePermission("roles.write"), handlers.AssignRole)

@@ -1,0 +1,12 @@
+# Built binaries
+fsid-gateway
+fsid-gateway.exe
+dist/
+
+# Site-specific files: contain the API key / OPC UA password or plant data
+gateway.json
+pki/
+*.log
+*.log.1
+gateway-buffer.jsonl*
+gateway-config-cache.json*

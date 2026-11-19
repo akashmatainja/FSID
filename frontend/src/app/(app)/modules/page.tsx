@@ -11,18 +11,95 @@ import type { Module, ModuleMetric } from "@/types";
 const MODULE_ICONS: Record<string, React.ElementType> = {
   energy: Zap,
   environmental: Wind,
-  vibration: Activity,
   prediction: Brain,
-  safety: Shield,
+  // remote_maintenance: Activity, // Expert Guided Remote Maintenance moved to a separate site
 };
 
 const MODULE_COLORS: Record<string, string> = {
-  energy:        "from-yellow-500/20 to-orange-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400",
-  environmental: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
-  vibration:     "from-blue-500/20 to-indigo-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400",
-  prediction:    "from-purple-500/20 to-violet-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400",
-  safety:        "from-red-500/20 to-rose-500/10 border-red-500/30 text-red-600 dark:text-red-400",
+  energy:             "from-yellow-500/20 to-orange-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400",
+  environmental:       "from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
+  prediction:          "from-purple-500/20 to-violet-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400",
+  // Expert Guided Remote Maintenance moved to a separate site
+  // remote_maintenance:  "from-blue-500/20 to-indigo-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400",
 };
+
+type LimitKey = "warn_min" | "warn_max" | "crit_min" | "crit_max";
+type MetricForm = { name: string; code: string; unit: string; node_id: string } & Record<LimitKey, string>;
+
+const EMPTY_FORM: MetricForm = { name: "", code: "", unit: "", node_id: "", warn_min: "", warn_max: "", crit_min: "", crit_max: "" };
+const LIMIT_FIELDS: { key: LimitKey; label: string }[] = [
+  { key: "crit_min", label: "Crit min" },
+  { key: "warn_min", label: "Warn min" },
+  { key: "warn_max", label: "Warn max" },
+  { key: "crit_max", label: "Crit max" },
+];
+
+const formFromMetric = (m: ModuleMetric): MetricForm => ({
+  name: m.name, code: m.code, unit: m.unit, node_id: m.node_id ?? "",
+  warn_min: m.warn_min?.toString() ?? "", warn_max: m.warn_max?.toString() ?? "",
+  crit_min: m.crit_min?.toString() ?? "", crit_max: m.crit_max?.toString() ?? "",
+});
+
+/** Form -> API payload; returns an error message when limits are out of order. */
+function toPayload(f: MetricForm): { payload?: object; error?: string } {
+  const limits = {} as Record<LimitKey, number | null>;
+  for (const { key, label } of LIMIT_FIELDS) {
+    const raw = f[key].trim();
+    if (raw === "") { limits[key] = null; continue; }
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return { error: `${label} must be a number` };
+    limits[key] = n;
+  }
+  const order = LIMIT_FIELDS.map((x) => limits[x.key]);
+  for (let i = 0; i < order.length; i++) for (let j = i + 1; j < order.length; j++) {
+    const a = order[i], b = order[j];
+    if (a !== null && b !== null && a > b) return { error: `${LIMIT_FIELDS[i].label} must not exceed ${LIMIT_FIELDS[j].label}` };
+  }
+  return { payload: { name: f.name, code: f.code, unit: f.unit, node_id: f.node_id.trim(), limits } };
+}
+
+function limitSummary(m: ModuleMetric) {
+  const u = m.unit ? ` ${m.unit}` : "";
+  const side = (lo?: number | null, hi?: number | null) =>
+    [lo != null ? `≥ ${lo}` : "", hi != null ? `≤ ${hi}` : ""].filter(Boolean).join(" · ");
+  const parts: string[] = [];
+  if (m.warn_min != null || m.warn_max != null) parts.push(`warn ${side(m.warn_min, m.warn_max)}${u}`);
+  if (m.crit_min != null || m.crit_max != null) parts.push(`crit ${side(m.crit_min, m.crit_max)}${u}`);
+  return parts;
+}
+
+function LimitInputs({ form, onChange }: { form: MetricForm; onChange: (f: MetricForm) => void }) {
+  return (
+    <div className="basis-full flex flex-wrap items-center gap-2 pt-2">
+      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">Alert limits</span>
+      {LIMIT_FIELDS.map(({ key, label }) => (
+        <label key={key} className="flex items-center gap-1.5">
+          <span className={`text-xs font-semibold ${key.startsWith("crit") ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>{label}</span>
+          <input
+            inputMode="decimal"
+            value={form[key]}
+            onChange={(e) => onChange({ ...form, [key]: e.target.value })}
+            className="w-20 px-2 py-1 rounded-md border border-border bg-background text-xs tabular focus:outline-none"
+            placeholder="—"
+          />
+        </label>
+      ))}
+      <span className="text-xs text-muted-foreground">Leave blank to skip. Order: crit min ≤ warn min ≤ warn max ≤ crit max.</span>
+      <label className="basis-full flex flex-wrap items-center gap-2 pt-1">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">OPC UA node template</span>
+        <input
+          value={form.node_id}
+          onChange={(e) => onChange({ ...form, node_id: e.target.value })}
+          className="flex-1 min-w-[260px] px-2 py-1 rounded-md border border-border bg-background text-xs font-mono focus:outline-none"
+          placeholder="e.g. ns=2;s={machine_code}.Voltage"
+        />
+        <span className="text-xs text-muted-foreground basis-full">
+          Placeholders: {"{machine_code}"}, {"{machine_name}"}, {"{metric_code}"}. Machines can override it on their own page. Empty = set per machine.
+        </span>
+      </label>
+    </div>
+  );
+}
 
 export default function ModulesPage() {
   const { permissions } = useAuth();
@@ -36,10 +113,10 @@ export default function ModulesPage() {
 
   // Metric form state
   const [addingMetricFor, setAddingMetricFor] = useState<string | null>(null);
-  const [metricForm, setMetricForm] = useState({ name: "", code: "", unit: "" });
+  const [metricForm, setMetricForm] = useState<MetricForm>(EMPTY_FORM);
   const [savingMetric, setSavingMetric] = useState(false);
   const [editingMetric, setEditingMetric] = useState<ModuleMetric | null>(null);
-  const [editMetricForm, setEditMetricForm] = useState({ name: "", code: "", unit: "" });
+  const [editMetricForm, setEditMetricForm] = useState<MetricForm>(EMPTY_FORM);
   const [deletingMetric, setDeletingMetric] = useState<string | null>(null);
 
   async function load() {
@@ -80,18 +157,20 @@ export default function ModulesPage() {
 
   async function handleAddMetric(moduleId: string) {
     if (!metricForm.name || !metricForm.code) return;
+    const { payload, error } = toPayload(metricForm);
+    if (error) { toast.error(error); return; }
     setSavingMetric(true);
     try {
-      const metric = await api.post<ModuleMetric>(`/api/v1/modules/${moduleId}/metrics`, metricForm);
+      const metric = await api.post<ModuleMetric>(`/api/v1/modules/${moduleId}/metrics`, payload);
       setModules(prev => prev.map(m => m.id === moduleId
         ? { ...m, metrics: [...(m.metrics || []), metric] }
         : m
       ));
-      setMetricForm({ name: "", code: "", unit: "" });
+      setMetricForm(EMPTY_FORM);
       setAddingMetricFor(null);
       toast.success("Metric added");
-    } catch {
-      toast.error("Failed to add metric");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to add metric");
     } finally {
       setSavingMetric(false);
     }
@@ -99,17 +178,19 @@ export default function ModulesPage() {
 
   async function handleUpdateMetric(moduleId: string) {
     if (!editingMetric) return;
+    const { payload, error } = toPayload(editMetricForm);
+    if (error) { toast.error(error); return; }
     setSavingMetric(true);
     try {
-      const updated = await api.put<ModuleMetric>(`/api/v1/modules/${moduleId}/metrics/${editingMetric.id}`, editMetricForm);
+      const updated = await api.put<ModuleMetric>(`/api/v1/modules/${moduleId}/metrics/${editingMetric.id}`, payload);
       setModules(prev => prev.map(m => m.id === moduleId
         ? { ...m, metrics: (m.metrics || []).map(met => met.id === editingMetric.id ? updated : met) }
         : m
       ));
       setEditingMetric(null);
       toast.success("Metric updated");
-    } catch {
-      toast.error("Failed to update metric");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update metric");
     } finally {
       setSavingMetric(false);
     }
@@ -279,7 +360,7 @@ export default function ModulesPage() {
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-bold text-foreground">Metrics</h4>
                           <button
-                            onClick={() => { setAddingMetricFor(module.id); setMetricForm({ name: "", code: "", unit: "" }); }}
+                            onClick={() => { setAddingMetricFor(module.id); setMetricForm(EMPTY_FORM); }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 text-brand-600 dark:text-brand-400 text-xs font-bold transition-all"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -293,7 +374,7 @@ export default function ModulesPage() {
                             <p className="text-xs text-muted-foreground text-center py-4">No metrics yet. Add metrics to define what data this module collects.</p>
                           )}
                           {(module.metrics || []).map((metric) => (
-                            <div key={metric.id} className="flex items-center gap-3 p-3 rounded-xl bg-card/60 border border-border/40 group">
+                            <div key={metric.id} className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-card/60 border border-border/40 group">
                               {editingMetric?.id === metric.id ? (
                                 <>
                                   <input
@@ -320,15 +401,21 @@ export default function ModulesPage() {
                                   <button onClick={() => setEditingMetric(null)} className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 border border-border/50 flex items-center justify-center transition-all">
                                     <X className="w-3.5 h-3.5 text-muted-foreground" />
                                   </button>
+                                  <LimitInputs form={editMetricForm} onChange={setEditMetricForm} />
                                 </>
                               ) : (
                                 <>
-                                  <span className="flex-1 text-sm font-semibold text-foreground">{metric.name}</span>
+                                  <span className="flex-1 min-w-0 text-sm font-semibold text-foreground">
+                                    {metric.name}
+                                    {limitSummary(metric).map((t) => (
+                                      <span key={t} className={`ml-2 align-middle inline-flex px-1.5 py-0.5 rounded text-xs font-semibold tabular border ${t.startsWith("crit") ? "border-red-500/30 text-red-600 dark:text-red-400 bg-red-500/5" : "border-amber-500/30 text-amber-700 dark:text-amber-400 bg-amber-500/5"}`}>{t}</span>
+                                    ))}
+                                  </span>
                                   <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-muted text-muted-foreground border border-border/50">{metric.code}</span>
                                   <span className="w-14 text-xs font-medium text-muted-foreground text-right">{metric.unit || "—"}</span>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
-                                      onClick={() => { setEditingMetric(metric); setEditMetricForm({ name: metric.name, code: metric.code, unit: metric.unit }); }}
+                                      onClick={() => { setEditingMetric(metric); setEditMetricForm(formFromMetric(metric)); }}
                                       className="w-7 h-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/50 flex items-center justify-center transition-all"
                                     >
                                       <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
@@ -353,7 +440,7 @@ export default function ModulesPage() {
                                 initial={{ opacity: 0, y: -8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
-                                className="flex items-center gap-3 p-3 rounded-xl bg-brand-500/5 border border-brand-500/20"
+                                className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-brand-500/5 border border-brand-500/20"
                               >
                                 <input
                                   autoFocus
@@ -380,6 +467,7 @@ export default function ModulesPage() {
                                 <button onClick={() => setAddingMetricFor(null)} className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 border border-border/50 flex items-center justify-center transition-all">
                                   <X className="w-3.5 h-3.5 text-muted-foreground" />
                                 </button>
+                                <LimitInputs form={metricForm} onChange={setMetricForm} />
                               </motion.div>
                             )}
                           </AnimatePresence>

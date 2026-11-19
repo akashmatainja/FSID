@@ -212,9 +212,9 @@ export default function SubdivisionsPage() {
         </div>
       ) : (
         <div className="glass-card overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
+          <table className="data-table w-full text-left border-collapse whitespace-nowrap">
             <thead>
-              <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+              <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                 <th className="p-4 pl-6">Subdivision & Status</th>
                 <th className="p-4">Parent Branch</th>
                 {isSuperadmin && <th className="p-4">Organization</th>}
@@ -260,10 +260,10 @@ export default function SubdivisionsPage() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                           <span>#{subdivision.code}</span>
                           <span className="w-1 h-1 rounded-full bg-border" />
-                          <span className="uppercase tracking-wider text-[10px] font-semibold">{subdivision.status}</span>
+                          <span className="uppercase tracking-wider text-xs font-semibold">{subdivision.status}</span>
                         </div>
                         {subdivision.description && (
-                          <div className="text-[10px] text-muted-foreground/70 mt-1 max-w-xs truncate">
+                          <div className="text-xs text-muted-foreground/70 mt-1 max-w-xs truncate">
                             {subdivision.description}
                           </div>
                         )}

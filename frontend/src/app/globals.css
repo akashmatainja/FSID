@@ -1,122 +1,261 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Theme tokens — "Industrial Navy"
+   Navy sidebar, cool slate canvas, white cards, teal accent.
+   Values are space-separated RGB so they work with rgb(var(--x) / alpha).
+   ────────────────────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    --background: 249 250 251; /* slate-50 */
-    --foreground: 15 23 42;    /* slate-900 */
+    --background: 238 242 247;        /* cool slate canvas  #eef2f7 */
+    --foreground: 27 46 71;           /* navy ink           #1b2e47 */
     --card: 255 255 255;
-    --card-foreground: 15 23 42;
-    --border: 226 232 240;     /* slate-200 */
-    --input: 226 232 240;
-    --primary: 20 184 166;     /* teal-500 */
+    --card-foreground: 27 46 71;
+    --border: 214 222 233;            /* #d6dee9 */
+    --input: 214 222 233;
+    --primary: 23 163 151;            /* teal               #17a397 */
     --primary-foreground: 255 255 255;
-    --muted: 241 245 249;      /* slate-100 */
-    --muted-foreground: 100 116 139; /* slate-500 */
-    --accent: 241 245 249;
-    --destructive: 239 68 68;
+    --muted: 241 244 249;
+    --muted-foreground: 100 116 139;
+    --accent: 232 238 245;
+    --destructive: 214 74 60;         /* #d64a3c */
     --radius: 0.75rem;
     --sidebar-width: 260px;
+
+    /* Sidebar (always navy, in both themes) */
+    --sidebar: 30 58 92;              /* #1e3a5c */
+    --sidebar-deep: 24 47 76;         /* #182f4c */
+    --sidebar-foreground: 255 255 255;
+    --sidebar-muted: 160 181 206;     /* #a0b5ce */
+    --sidebar-border: 255 255 255;    /* used at low alpha */
   }
 
   .dark {
-    --background: 15 23 42;    /* slate-900 */
-    --foreground: 248 250 252; /* slate-50 */
-    --card: 30 41 59;          /* slate-800 */
-    --card-foreground: 248 250 252;
-    --border: 51 65 85;        /* slate-700 */
-    --input: 51 65 85;
-    --primary: 45 212 191;     /* teal-400 */
-    --primary-foreground: 15 23 42;
-    --muted: 30 41 59;
-    --muted-foreground: 148 163 184; /* slate-400 */
-    --accent: 30 41 59;
-    --destructive: 239 68 68;
+    --background: 11 22 36;           /* #0b1624 */
+    --foreground: 226 234 243;
+    --card: 17 33 51;                 /* #112133 */
+    --card-foreground: 226 234 243;
+    --border: 33 54 78;               /* #21364e */
+    --input: 33 54 78;
+    --primary: 45 191 174;
+    --primary-foreground: 11 22 36;
+    --muted: 22 41 62;
+    --muted-foreground: 138 158 182;
+    --accent: 25 46 70;
+    --destructive: 239 99 84;
+
+    --sidebar: 14 30 50;              /* #0e1e32 */
+    --sidebar-deep: 9 21 37;
+    --sidebar-foreground: 255 255 255;
+    --sidebar-muted: 140 162 189;
+    --sidebar-border: 255 255 255;
   }
 
   * { @apply border-border; }
+
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased selection:bg-brand-500/30 selection:text-brand-900 dark:selection:text-brand-100;
+    @apply font-sans antialiased selection:bg-brand-500/25;
     background-color: rgb(var(--background));
     color: rgb(var(--foreground));
+    /* Base type: 14px minimum, bold throughout (see fontSize/fontWeight in tailwind.config.ts) */
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 700;
   }
-  
-  /* Beautiful Select Styling */
+
+  /* Numbers line up in KPI tiles and tables */
+  .tabular { font-variant-numeric: tabular-nums; }
+
   select {
     @apply appearance-none bg-no-repeat bg-right cursor-pointer transition-all duration-200;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 7l5 5 5-5'/%3e%3c/svg%3e");
     background-position: right 0.75rem center;
     background-size: 1.25em 1.25em;
   }
-  
   .dark select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 7l5 5 5-5'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238a9eb6' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 7l5 5 5-5'/%3e%3c/svg%3e");
   }
-  
-  select option {
-    @apply bg-card text-foreground py-2;
+  select option { @apply py-2; background-color: rgb(var(--card)); color: rgb(var(--foreground)); }
+
+  input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(var(--primary) / 0.18);
+    border-color: rgb(var(--primary) / 0.6);
   }
 }
 
 @layer components {
   .select-beautiful {
-    @apply w-full py-2.5 pl-4 pr-10 rounded-xl border-2 backdrop-blur-sm text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50 hover:border-brand-500/30 hover:shadow-md transition-all appearance-none cursor-pointer;
-    background-color: rgb(var(--card) / 0.8);
+    @apply w-full py-2.5 pl-4 pr-10 rounded-lg border text-sm font-semibold shadow-sm focus:outline-none transition-all appearance-none cursor-pointer;
+    background-color: rgb(var(--card));
     border-color: rgb(var(--border));
     color: rgb(var(--foreground));
   }
+  .select-beautiful:hover { border-color: rgb(var(--primary) / 0.45); }
 }
 
 @layer utilities {
-  .bg-background { background-color: rgb(var(--background)); }
-  .bg-card       { background-color: rgb(var(--card)); }
-  .text-foreground { color: rgb(var(--foreground)); }
-  .text-muted-foreground { color: rgb(var(--muted-foreground)); }
-  .border-border  { border-color: rgb(var(--border)); }
+  /* Token colours (bg-card, text-foreground, border-border, bg-muted/50 …) are
+     registered in tailwind.config.ts so opacity modifiers work. */
 
-  /* Modern Corporate Glass Card */
+  /* Card — crisp white panel with a hairline border (replaces the old glass look,
+     same class name so every page picks it up). */
   .glass-card {
-    background-color: rgb(var(--card) / 0.8);
-    @apply backdrop-blur-md border border-white/20 dark:border-white/10 shadow-glass transition-all duration-300 hover:shadow-glass-hover;
+    background-color: rgb(var(--card));
+    border: 1px solid rgb(var(--border));
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px rgb(15 35 60 / 0.04), 0 1px 1px rgb(15 35 60 / 0.02);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  }
+  .glass-card:hover {
+    box-shadow: 0 8px 24px -8px rgb(15 35 60 / 0.12), 0 2px 4px rgb(15 35 60 / 0.04);
+  }
+  .dark .glass-card { box-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
+  .dark .glass-card:hover { box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.6); border-color: rgb(var(--primary) / 0.25); }
+
+  /* Card with a coloured left edge — set --accent-color inline */
+  .card-accent {
+    position: relative;
+    overflow: hidden;
+  }
+  .card-accent::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--accent-color, rgb(var(--primary)));
   }
 
-  .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
-           transition-all duration-200 cursor-pointer border border-transparent;
+  .section-title {
+    @apply text-[15px] font-bold tracking-tight;
+    color: rgb(var(--foreground));
+  }
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.08em];
     color: rgb(var(--muted-foreground));
   }
-  .sidebar-item:hover {
-    @apply bg-brand-50/50 dark:bg-brand-900/20 text-foreground border-brand-100 dark:border-brand-800/30;
+
+  /* Sidebar items (navy rail) */
+  .sidebar-item {
+    @apply relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           transition-colors duration-200 cursor-pointer;
+    color: rgb(var(--sidebar-muted));
   }
-  .sidebar-item.active {
-    @apply bg-brand-500 text-white shadow-md shadow-brand-500/20 border-brand-400/50 dark:border-brand-400/20;
-  }
-  .sidebar-item.active .lucide {
-    @apply text-white;
-  }
+  .sidebar-item:hover { color: rgb(var(--sidebar-foreground)); background-color: rgb(255 255 255 / 0.06); }
+  .sidebar-item.active { color: rgb(var(--sidebar-foreground)); background-color: transparent; }
+  .sidebar-item.active .lucide { color: rgb(var(--sidebar-foreground)); }
 
   .skeleton {
-    @apply animate-pulse rounded-lg;
-    background-color: rgb(var(--muted));
+    @apply rounded-lg;
+    background: linear-gradient(90deg, rgb(var(--muted)) 0%, rgb(var(--accent)) 50%, rgb(var(--muted)) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
   }
 
-  /* Modern Button Styles */
+  /* Buttons */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-xl font-medium shadow-sm 
-           transition-all duration-200 hover:bg-brand-600 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-semibold
+           transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none;
+    background-color: rgb(var(--primary));
+    box-shadow: 0 1px 2px rgb(15 35 60 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.15);
   }
-  
+  .btn-primary:hover { filter: brightness(1.06); box-shadow: 0 6px 16px -6px rgb(var(--primary) / 0.6); }
+  .dark .btn-primary { color: rgb(var(--primary-foreground)); }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-foreground border border-border rounded-xl font-medium shadow-sm 
-           transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border
+           transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    background-color: rgb(var(--card));
+    color: rgb(var(--foreground));
+    border-color: rgb(var(--border));
   }
+  .btn-secondary:hover { border-color: rgb(var(--primary) / 0.5); color: rgb(var(--primary)); }
+
+  /* Status badges, as in the alerts list */
+  .badge {
+    @apply inline-flex items-center justify-center px-2.5 py-0.5 rounded text-xs font-extrabold uppercase tracking-[0.04em] text-white whitespace-nowrap;
+  }
+  .badge-danger  { background-color: #d64a3c; }
+  .badge-warning { background-color: #e0a030; }
+  .badge-info    { background-color: #2f6ca3; }
+  .badge-success { background-color: #17a397; }
+
+  /* ── Data tables ────────────────────────────────────────────────────────
+     Add `data-table` to a <table>. The header is a solid navy band with a
+     teal underline; the body is light with zebra rows and a teal hover.
+     Header rules use `.data-table thead th` so they win over per-<th>
+     utility classes; body colours are inherited so cell utilities
+     (e.g. text-muted-foreground for secondary info) still apply.
+     Highlights: tr.row-critical / tr.row-warning tint a whole row and add
+     a coloured edge; .cell-key / .cell-danger / .cell-warning emphasise a
+     single value. */
+  .data-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    color: rgb(var(--foreground));
+  }
+  .data-table thead th {
+    background: linear-gradient(180deg, #24466e 0%, #1e3a5c 100%);
+    color: #eaf1f9;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    border-bottom: 3px solid #17a397;
+  }
+  .dark .data-table thead th {
+    background: linear-gradient(180deg, #1d3756 0%, #182f4a 100%);
+    color: #e2eaf3;
+    border-bottom-color: #2dbfae;
+  }
+  .data-table thead th[title] { cursor: help; }
+
+  .data-table tbody td {
+    vertical-align: middle;
+    border-bottom: 1px solid rgb(var(--border) / 0.7);
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+  }
+  .data-table tbody tr:last-child > td { border-bottom: 0; }
+  .data-table tbody tr:nth-child(even) > td { background-color: rgb(var(--muted) / 0.75); }
+  .data-table tbody tr:hover > td { background-color: rgb(var(--primary) / 0.09); }
+  .data-table tbody tr:hover > td:first-child { box-shadow: inset 3px 0 0 rgb(var(--primary)); }
+  /* First column is the row's identity */
+  .data-table tbody td:first-child { font-weight: 800; }
+
+  /* Row highlights (placed after zebra/hover so they win) */
+  .data-table tbody tr.row-critical > td { background-color: rgb(214 74 60 / 0.09); }
+  .data-table tbody tr.row-critical > td:first-child { box-shadow: inset 4px 0 0 #d64a3c; }
+  .data-table tbody tr.row-critical:hover > td { background-color: rgb(214 74 60 / 0.15); }
+  .data-table tbody tr.row-warning > td { background-color: rgb(224 160 48 / 0.10); }
+  .data-table tbody tr.row-warning > td:first-child { box-shadow: inset 4px 0 0 #e0a030; }
+  .data-table tbody tr.row-warning:hover > td { background-color: rgb(224 160 48 / 0.17); }
+
+  /* Cell highlights */
+  .cell-key     { font-weight: 800; font-variant-numeric: tabular-nums; color: rgb(var(--primary)); }
+  .cell-danger  { font-weight: 800; font-variant-numeric: tabular-nums; color: #c43b2e; }
+  .cell-warning { font-weight: 800; font-variant-numeric: tabular-nums; color: #b97a0e; }
+  .dark .cell-danger  { color: #f07a6d; }
+  .dark .cell-warning { color: #f0b84f; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { border-radius: 3px; background: rgb(var(--border)); }
-::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted-foreground) / 0.5); }
+::-webkit-scrollbar-thumb { border-radius: 8px; background: rgb(var(--border)); border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted-foreground) / 0.5); background-clip: padding-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

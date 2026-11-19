@@ -2,12 +2,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Building2, AlertCircle, Package, Activity, Radio, Zap } from "lucide-react";
+import { Plus, Cpu, MapPin, Search, Loader2, Trash2, Pencil, ChevronRight, Building2, AlertCircle, Package, Activity, Radio, Zap, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Machine, Company, Branch, Subdivision, Module } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import { useRealtimeStore } from "@/store/useRealtimeStore";
 import CustomSelect from "@/components/ui/CustomSelect";
 import AnimatedPagination from "@/components/ui/AnimatedPagination";
 
@@ -22,6 +23,7 @@ export default function MachinesPage() {
   const { permissions, companyUser } = useAuth();
   const canWrite = permissions["machines.write"];
   const isSuperadmin = permissions["superadmin"];
+  const { latestValues, isLive } = useRealtimeStore();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -354,9 +356,9 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+            <table className="data-table w-full text-left border-collapse whitespace-nowrap">
               <thead>
-                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                   <th className="p-4 pl-6">Equipment & Status</th>
                   {isSuperadmin && <th className="p-4">Company</th>}
                   <th className="p-4">Location Node</th>
@@ -373,7 +375,7 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() => router.push(`/machines/${m.id}`)}
-                    className="group hover:bg-muted/10 transition-colors cursor-pointer relative"
+                    className={`group cursor-pointer relative ${m.status === "maintenance" ? "row-warning" : ""}`}
                   >
                     <td className="p-4 pl-6 relative">
                       {/* Active Status Left Indicator */}
@@ -408,8 +410,18 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                           <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                             <span>#{m.code}</span>
                             <span className="w-1 h-1 rounded-full bg-border" />
-                            <span className="uppercase tracking-wider text-[10px] font-semibold">{m.status}</span>
+                            <span className="uppercase tracking-wider text-xs font-semibold">{m.status}</span>
                           </div>
+                          {isLive && latestValues[m.id] && (
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {Object.entries(latestValues[m.id]).slice(0, 2).map(([key, val]) => (
+                                <span key={key} className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-500 border border-brand-500/15">
+                                  <Wifi className="w-2.5 h-2.5" />
+                                  {key}: {(val as number).toFixed(1)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -439,7 +451,7 @@ if (!form.branch_id && !editing) errors.branch_id = "Branch selection is require
                     <td className="p-4">
                       <div className="flex flex-col gap-1.5">
                         <div>
-                          <span className="text-[10px] px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider">
+                          <span className="text-xs px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider">
                             {m.equipment_type || "UNKNOWN"}
                           </span>
                         </div>

@@ -31,7 +31,30 @@ async function request<T>(
   return res.json();
 }
 
+/** Authenticated file download (e.g. CSV export). Saves via a temporary link. */
+async function download(path: string, fallbackName = "download"): Promise<{ truncated: boolean }> {
+  const authHeaders = await getAuthHeader();
+  const res = await fetch(`${API_URL}${path}`, { headers: authHeaders });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || "Download failed");
+  }
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const name = /filename="?([^";]+)"?/.exec(disposition)?.[1] || fallbackName;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return { truncated: res.headers.get("X-Truncated") === "true" };
+}
+
 export const api = {
+  download,
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body) }),

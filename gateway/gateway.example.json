@@ -1,0 +1,19 @@
+{
+  "api_url": "https://YOUR-BACKEND.up.railway.app",
+  "api_key": "fsgw_PASTE_THE_KEY_FROM_THE_GATEWAYS_PAGE",
+  "opcua": {
+    "endpoint": "opc.tcp://192.168.1.10:4840",
+    "security_policy": "None",
+    "security_mode": "None",
+    "username": "",
+    "password": "",
+    "certificate_file": "",
+    "private_key_file": "",
+    "application_uri": ""
+  },
+  "use_source_timestamp": false,
+  "buffer_file": "gateway-buffer.jsonl",
+  "max_buffered_readings": 500000,
+  "config_refresh_seconds": 60,
+  "log_file": "gateway.log"
+}

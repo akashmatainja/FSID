@@ -2,19 +2,24 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package, Trash2, ChevronRight, BarChart2 } from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from "recharts";
+import { ArrowLeft, Cpu, MapPin, Calendar, Users, Activity, TrendingUp, Building2, Plus, X, UserPlus, Package, Trash2, ChevronRight, BarChart2, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import KpiTile from "@/components/ui/KpiTile";
+import RangePills from "@/components/ui/RangePills";
+import LivePill from "@/components/ui/LivePill";
+import TrendChart from "@/components/charts/TrendChart";
+import { useChartPalette, seriesColor } from "@/components/charts/palette";
+import { buildModuleChartData, chartThreshold, metricStatus, moduleSeries, seriesDelta } from "@/components/charts/moduleData";
 import { api } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModuleAccess } from "@/components/providers/ModuleAccessProvider";
+import { useRealtimeStore } from "@/store/useRealtimeStore";
 import type { Machine, MachineStat, CompanyUser, Module } from "@/types";
 import { METRIC_COLORS, METRIC_UNITS, type DateRange, type MetricKey } from "@/types";
 import { getDateRangeFrom } from "@/lib/utils";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
+import OpcuaMappingCard from "@/components/machines/OpcuaMappingCard";
 
 const DATE_RANGES: { label: string; value: DateRange }[] = [
   { label: "15m", value: "15m" }, { label: "1h", value: "1h" },
@@ -31,6 +36,7 @@ export default function MachineDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { permissions } = useAuth();
+  const { refresh: refreshModuleAccess } = useModuleAccess();
   
   // Check if user has permission to manage assignments
   const canManageAssignments = permissions["machines.write"];
@@ -63,9 +69,12 @@ export default function MachineDetailPage() {
   const [selectedModuleForMetrics, setSelectedModuleForMetrics] = useState<Module | null>(null);
 
   // Charts state
-  const [dateRange, setDateRange] = useState<DateRange>("1h");
+  const [dateRange, setDateRange] = useState<DateRange>("15m");
   const [selectedMetrics, setSelectedMetrics] = useState<Record<string, string[]>>({});
   const [statsLoading, setStatsLoading] = useState(false);
+
+  // Live OPC UA data via global store
+  const { timeSeries, isLive, latestValues } = useRealtimeStore();
 
   useEffect(() => {
     async function loadData() {
@@ -124,30 +133,22 @@ export default function MachineDetailPage() {
     return () => clearInterval(interval);
   }, [machineId, dateRange]);
 
+  // Use live WS data for "15m" view when connected, else fall back to API stats
+  const useLive = isLive && dateRange === "15m";
+
+  const palette = useChartPalette();
+
   const moduleChartDataMap = useMemo(() => {
-    const dataMap: Record<string, any[]> = {};
-
+    const dataMap: Record<string, ReturnType<typeof buildModuleChartData>> = {};
     assignedModules.forEach((module) => {
-      const merged: Record<string, Record<string, number>> = {};
-
-      module.metrics?.forEach((metric) => {
-        const metricKey = metric.code.toLowerCase();
-        stats
-          .filter((s) => s.metric_key === metricKey)
-          .forEach((s) => {
-            const timeKey = new Date(s.ts).toISOString();
-            if (!merged[timeKey]) merged[timeKey] = {};
-            merged[timeKey][metric.code] = s.metric_value;
-          });
+      dataMap[module.id] = buildModuleChartData(module, machineId, {
+        live: useLive,
+        liveSeries: timeSeries[machineId],
+        stats,
       });
-
-      dataMap[module.id] = Object.entries(merged)
-        .map(([ts, vals]) => ({ ts, ...vals }))
-        .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     });
-
     return dataMap;
-  }, [assignedModules, stats]);
+  }, [assignedModules, stats, timeSeries, machineId, useLive]);
 
   const loadAvailableUsers = async () => {
     try {
@@ -244,6 +245,7 @@ export default function MachineDetailPage() {
       setSelectedModuleId("");
       const modulesData = await api.get<Module[]>(`/api/v1/machines/${machineId}/modules`);
       setAssignedModules(modulesData);
+      refreshModuleAccess();
     } catch (error) {
       console.error("Failed to assign module:", error);
       toast.error("Failed to assign module to machine");
@@ -268,6 +270,7 @@ export default function MachineDetailPage() {
       setModuleToUnassign(null);
       const modulesData = await api.get<Module[]>(`/api/v1/machines/${machineId}/modules`);
       setAssignedModules(modulesData);
+      refreshModuleAccess();
     } catch (error) {
       console.error("Failed to unassign module:", error);
       toast.error("Failed to unassign module");
@@ -325,7 +328,27 @@ export default function MachineDetailPage() {
             </div>
             {machine.name}
           </h1>
-          <p className="text-sm font-medium text-muted-foreground mt-1">Comprehensive Machine Analysis and Statistics</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-sm font-medium text-muted-foreground">Comprehensive Machine Analysis and Statistics</p>
+            <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border transition-all ${
+              isLive
+                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                : "bg-slate-500/10 text-slate-500 border-slate-500/20"
+            }`}>
+              {isLive ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <Wifi className="w-3 h-3" />
+                  Live OPC UA
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3 h-3" />
+                  Connecting…
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -402,7 +425,7 @@ export default function MachineDetailPage() {
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Operating Company</label>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-foreground">{machine.company.name}</p>
-                    <span className="text-[10px] font-mono px-2 py-0.5 bg-background rounded-md text-muted-foreground border border-border">@{machine.company.slug}</span>
+                    <span className="text-xs font-mono px-2 py-0.5 bg-background rounded-md text-muted-foreground border border-border">@{machine.company.slug}</span>
                   </div>
                 </div>
               </div>
@@ -417,7 +440,7 @@ export default function MachineDetailPage() {
                   <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
                     <Package className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                   </div>
-                  Monitoring Modules
+                  Subscribe Modules
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400 border border-brand-200 dark:border-brand-500/20 ml-2">
                     {assignedModules.length} Active
                   </span>
@@ -443,9 +466,9 @@ export default function MachineDetailPage() {
                   const colorConfig: Record<string, { bgGlow: string, iconBg: string, iconBorder: string, text: string, hoverText: string }> = {
                     energy: { bgGlow: "bg-yellow-500/10 group-hover:bg-yellow-500/20", iconBg: "bg-yellow-500/10", iconBorder: "border-yellow-500/20", text: "text-yellow-600 dark:text-yellow-400", hoverText: "group-hover:text-yellow-600 dark:group-hover:text-yellow-400" },
                     environmental: { bgGlow: "bg-emerald-500/10 group-hover:bg-emerald-500/20", iconBg: "bg-emerald-500/10", iconBorder: "border-emerald-500/20", text: "text-emerald-600 dark:text-emerald-400", hoverText: "group-hover:text-emerald-600 dark:group-hover:text-emerald-400" },
-                    vibration: { bgGlow: "bg-blue-500/10 group-hover:bg-blue-500/20", iconBg: "bg-blue-500/10", iconBorder: "border-blue-500/20", text: "text-blue-600 dark:text-blue-400", hoverText: "group-hover:text-blue-600 dark:group-hover:text-blue-400" },
                     prediction: { bgGlow: "bg-purple-500/10 group-hover:bg-purple-500/20", iconBg: "bg-purple-500/10", iconBorder: "border-purple-500/20", text: "text-purple-600 dark:text-purple-400", hoverText: "group-hover:text-purple-600 dark:group-hover:text-purple-400" },
-                    safety: { bgGlow: "bg-red-500/10 group-hover:bg-red-500/20", iconBg: "bg-red-500/10", iconBorder: "border-red-500/20", text: "text-red-600 dark:text-red-400", hoverText: "group-hover:text-red-600 dark:group-hover:text-red-400" },
+                    // Expert Guided Remote Maintenance moved to a separate site
+                    // remote_maintenance: { bgGlow: "bg-blue-500/10 group-hover:bg-blue-500/20", iconBg: "bg-blue-500/10", iconBorder: "border-blue-500/20", text: "text-blue-600 dark:text-blue-400", hoverText: "group-hover:text-blue-600 dark:group-hover:text-blue-400" },
                   };
                   
                   const defaultColor = { bgGlow: "bg-brand-500/10 group-hover:bg-brand-500/20", iconBg: "bg-brand-500/10", iconBorder: "border-brand-500/20", text: "text-brand-600 dark:text-brand-400", hoverText: "group-hover:text-brand-600 dark:group-hover:text-brand-400" };
@@ -482,10 +505,10 @@ export default function MachineDetailPage() {
                           {module.name}
                         </h4>
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-muted text-muted-foreground border border-border/50 uppercase tracking-wider">
+                          <span className="px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-muted text-muted-foreground border border-border/50 uppercase tracking-wider">
                             {module.code}
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             ACTIVE
                           </span>
@@ -497,7 +520,7 @@ export default function MachineDetailPage() {
                       
                       <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between relative z-10">
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Metrics Count</span>
+                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Metrics Count</span>
                           <span className={`text-sm font-extrabold ${colors.text}`}>
                             {module.metrics?.length || 0}
                           </span>
@@ -561,15 +584,15 @@ export default function MachineDetailPage() {
             
             <div className="grid gap-4">
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Type</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Type</label>
                 <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors capitalize">{machine.equipment_type || "Unspecified"}</p>
               </div>
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Manufacturer</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Manufacturer</label>
                 <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.manufacturer || "Unspecified"}</p>
               </div>
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Model No.</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-brand-500 transition-colors">Model No.</label>
                 <p className="text-sm font-medium text-foreground font-mono bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.model_number || "Unspecified"}</p>
               </div>
             </div>
@@ -584,7 +607,7 @@ export default function MachineDetailPage() {
             
             <div className="grid gap-4">
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Rated Power</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Rated Power</label>
                 <div className="flex items-baseline gap-1 bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">
                   <span className="text-lg font-bold text-foreground">{machine.rated_power || 0}</span>
                   <span className="text-sm font-medium text-muted-foreground">kW</span>
@@ -592,11 +615,11 @@ export default function MachineDetailPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="group">
-                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Voltage</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Voltage</label>
                   <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.voltage_rating || "N/A"}</p>
                 </div>
                 <div className="group">
-                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Phase</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-amber-500 transition-colors">Phase</label>
                   <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.phase || "N/A"}</p>
                 </div>
               </div>
@@ -612,16 +635,16 @@ export default function MachineDetailPage() {
             
             <div className="grid gap-4">
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Meter ID</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Meter ID</label>
                 <p className="text-sm font-mono text-foreground bg-emerald-500/5 px-3 py-2 rounded-lg border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">{machine.energy_meter_id || "Unassigned"}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="group">
-                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Baseline</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Baseline</label>
                   <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.baseline_consumption || "N/A"}</p>
                 </div>
                 <div className="group">
-                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Target</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-emerald-500 transition-colors">Target</label>
                   <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.efficiency_target || "N/A"}</p>
                 </div>
               </div>
@@ -637,14 +660,14 @@ export default function MachineDetailPage() {
             
             <div className="grid gap-4">
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-blue-500 transition-colors">Uptime</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-blue-500 transition-colors">Uptime</label>
                 <div className="flex items-baseline gap-1 bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">
                   <span className="text-lg font-bold text-foreground">{machine.operating_hours || 0}</span>
                   <span className="text-sm font-medium text-muted-foreground">hrs/day</span>
                 </div>
               </div>
               <div className="group">
-                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-blue-500 transition-colors">Maintenance Cycle</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-blue-500 transition-colors">Maintenance Cycle</label>
                 <p className="text-sm font-medium text-foreground bg-muted/30 px-3 py-2 rounded-lg border border-transparent group-hover:border-border/50 transition-colors">{machine.maintenance_schedule || "Unscheduled"}</p>
               </div>
             </div>
@@ -660,7 +683,7 @@ export default function MachineDetailPage() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="group">
-                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-purple-500 transition-colors">Branch Facility</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 group-hover:text-purple-500 transition-colors">Branch Facility</label>
                   <div className="flex items-center gap-3 bg-muted/30 px-4 py-3 rounded-xl border border-transparent group-hover:border-border/50 transition-colors">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
                       <MapPin className="w-4 h-4" />
@@ -715,6 +738,9 @@ export default function MachineDetailPage() {
           </p>
         </div>
       </motion.div>
+
+      {/* Live data source: which OPC UA gateway reads this machine, and which nodes */}
+      <OpcuaMappingCard machineId={machineId} companyId={machine.company_id} canEdit={!!canManageAssignments} />
 
       {/* Assigned Users */}
       <motion.div
@@ -788,172 +814,112 @@ export default function MachineDetailPage() {
       {/* Module Charts Section */}
       <div className="space-y-6">
         {assignedModules.length === 0 ? (
-          <div className="glass-card p-10 text-center border-dashed border-2 border-border">
-            <BarChart2 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-foreground mb-2">No Modules Assigned</h3>
+          <div className="glass-card p-10 text-center border-dashed">
+            <BarChart2 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-foreground mb-1">No Modules Assigned</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
               This machine has no monitoring modules assigned. Assign modules to view analytics charts.
             </p>
           </div>
         ) : (
           assignedModules.map((module: Module) => {
-            const moduleColor = METRIC_COLORS[module.code.toLowerCase() as MetricKey] || "#6b7280";
-            const moduleChartData = moduleChartDataMap[module.id] || [];
-            const moduleSelectedMetrics = selectedMetrics[module.id] || module.metrics?.map(m => m.code) || [];
+            const chartData = moduleChartDataMap[module.id] || [];
+            const selected = selectedMetrics[module.id] ?? module.metrics?.map((m) => m.code) ?? [];
+            const series = moduleSeries(module, selected);
+            const threshold = chartThreshold(machine, series[0], chartData, module.metrics?.find((m) => m.code === series[0]?.key));
+            const useLiveHere = isLive && dateRange === "15m";
 
             return (
-              <motion.div
+              <motion.section
                 key={module.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card p-5 sm:p-6 flex flex-col"
+                className="space-y-3"
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${moduleColor}15`, border: `1px solid ${moduleColor}30` }}>
-                      <Package className="w-5 h-5" style={{ color: moduleColor }} />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-foreground">{module.name} Monitoring</h2>
-                      <p className="text-xs font-medium text-muted-foreground">{module.code}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex p-1 bg-muted/50 rounded-xl border border-border/50">
-                      {DATE_RANGES.map((dr) => (
-                        <button
-                          key={dr.value}
-                          onClick={() => setDateRange(dr.value)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            dateRange === dr.value
-                              ? "bg-brand-500 text-white shadow-sm"
-                              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                          }`}
-                        >
-                          {dr.label}
-                        </button>
-                      ))}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-extrabold tracking-tight text-navy-800 dark:text-white">
+                      {machine.code}
+                      <span className="text-muted-foreground/60 mx-2">·</span>
+                      {module.name} Monitoring
+                    </h2>
+                    <div className="mt-1.5">
+                      <LivePill live={useLiveHere} offLabel={isLive ? "Historical view" : "Connecting…"} />
                     </div>
                   </div>
+                  <RangePills value={dateRange} options={DATE_RANGES} onChange={setDateRange} />
                 </div>
 
-                {/* Metric toggles */}
-                <div className="flex flex-wrap gap-2 mb-6">
+                {/* KPI tiles */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
                   {module.metrics?.map((metric, idx) => {
-                    const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
-                    const color = colors[idx % colors.length];
-                    const isSelected = moduleSelectedMetrics.includes(metric.code);
-
+                    const key = metric.code.toLowerCase();
+                    const vals = useLiveHere
+                      ? (timeSeries[machineId]?.[key] || []).map((p) => p.value)
+                      : stats.filter((s) => s.metric_key === key).sort((a, b) => a.ts.localeCompare(b.ts)).map((s) => s.metric_value);
+                    const live = latestValues[machineId]?.[key];
+                    const value = live ?? (vals.length ? vals[vals.length - 1] : null);
                     return (
-                      <button
+                      <KpiTile
                         key={metric.id}
-                        onClick={() => {
-                          setSelectedMetrics(prev => ({
-                            ...prev,
-                            [module.id]: isSelected
-                              ? prev[module.id]?.filter(m => m !== metric.code) || []
-                              : [...(prev[module.id] || []), metric.code]
-                          }));
-                        }}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                          isSelected
-                            ? "bg-card border-border shadow-sm text-foreground"
-                            : "border-transparent text-muted-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full transition-all ${isSelected ? 'scale-100' : 'scale-50 opacity-50'}`}
-                          style={{ backgroundColor: color }}
-                        />
-                        {metric.name}
-                      </button>
+                        index={idx}
+                        label={metric.name}
+                        value={value}
+                        unit={metric.unit}
+                        color={seriesColor(palette, idx)}
+                        delta={seriesDelta(vals, value)}
+                        status={metricStatus(metric, value)}
+                      />
                     );
                   })}
                 </div>
 
-                <div className="w-full h-[350px]">
-                  {statsLoading ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <EnergyPulseLoader text="Loading analytics..." />
-                    </div>
-                  ) : moduleChartData.length === 0 ? (
-                    <div className="w-full h-full flex items-center justify-center flex-col text-muted-foreground">
-                      <BarChart2 className="w-12 h-12 mb-3 opacity-20" />
-                      <p className="font-medium">No data available for this module in the selected range</p>
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={moduleChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgb(var(--border) / 0.5)" />
-                        <XAxis
-                          dataKey="ts"
-                          tickFormatter={(v) => {
-                            const d = new Date(v);
-                            return dateRange === "24h" || dateRange === "7d" 
-                              ? `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-                              : `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-                          }}
-                          tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
-                          axisLine={false}
-                          tickLine={false}
-                          dy={10}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 12, fill: "rgb(var(--muted-foreground))", fontWeight: 500 }}
-                          axisLine={false}
-                          tickLine={false}
-                          width={60}
-                          tickFormatter={(v) => typeof v === 'number' ? v.toFixed(0) : v}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: "rgb(var(--card))",
-                            border: "1px solid rgb(var(--border))",
-                            borderRadius: "1rem",
-                            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.08)",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            padding: "12px 16px"
-                          }}
-                          itemStyle={{ padding: "4px 0" }}
-                          labelStyle={{ color: "rgb(var(--muted-foreground))", marginBottom: "8px", fontSize: "12px" }}
-                          formatter={(v: number, name: string) => {
-                            const metric = module.metrics?.find(m => m.code === name);
-                            return [v.toFixed(2), metric ? `${metric.name} (${metric.unit})` : name];
-                          }}
-                          labelFormatter={(label) => new Date(label).toLocaleString()}
-                        />
-                        <Legend
-                          verticalAlign="top"
-                          height={36}
-                          iconType="circle"
-                          wrapperStyle={{ fontSize: "12px", fontWeight: 600, color: "rgb(var(--foreground))" }}
-                        />
-                        {moduleSelectedMetrics.map((metricCode, idx) => {
-                          const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
-                          const color = colors[idx % colors.length];
-                          const metric = module.metrics?.find(m => m.code === metricCode);
-                          
+                {/* Trend */}
+                <div className="glass-card p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <h3 className="section-title">
+                      {series.slice(0, 2).map((s) => s.name).join(" & ") || "Trend"}
+                      {series.length > 2 ? ` +${series.length - 2}` : ""}
+                    </h3>
+                    {(module.metrics?.length ?? 0) > 1 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {module.metrics!.map((metric) => {
+                          const on = selected.includes(metric.code);
+                          const idx = series.findIndex((s) => s.key === metric.code);
                           return (
-                            <Line
-                              key={metricCode}
-                              type="monotone"
-                              dataKey={metricCode}
-                              name={metric?.name || metricCode}
-                              stroke={color}
-                              strokeWidth={3}
-                              dot={false}
-                              activeDot={{ r: 6, fill: color, stroke: "rgb(var(--card))", strokeWidth: 2 }}
-                              isAnimationActive={true}
-                            />
+                            <button
+                              key={metric.id}
+                              onClick={() => setSelectedMetrics((prev) => ({
+                                ...prev,
+                                [module.id]: on ? selected.filter((c) => c !== metric.code) : [...selected, metric.code],
+                              }))}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
+                                on ? "bg-card border-border text-foreground" : "border-transparent text-muted-foreground/70 hover:text-foreground"
+                              }`}
+                            >
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ background: on && idx >= 0 ? seriesColor(palette, idx) : "rgb(var(--muted-foreground) / 0.4)" }}
+                              />
+                              {metric.name}
+                            </button>
                           );
                         })}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                  <TrendChart
+                    data={chartData}
+                    series={series}
+                    range={dateRange}
+                    height={320}
+                    threshold={threshold}
+                    animate={!useLiveHere}
+                    loading={statsLoading && !useLiveHere && !chartData.length}
+                    emptyText={useLiveHere ? "Waiting for live OPC UA data…" : "No data available for this module in the selected range"}
+                  />
                 </div>
-              </motion.div>
+              </motion.section>
             );
           })
         )}

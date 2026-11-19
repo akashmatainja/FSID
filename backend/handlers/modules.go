@@ -1,12 +1,19 @@
 package handlers
 
 import (
+	"github.com/companyuser/backend/alerts"
 	"github.com/companyuser/backend/database"
 	"github.com/companyuser/backend/middleware"
 	"github.com/companyuser/backend/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"strings"
 )
+
+// HiddenModuleCode is the Expert Guided Remote Maintenance module, which now has
+// its own dedicated site. It is excluded from every module listing in this app.
+// Remove this filter to show it again.
+const HiddenModuleCode = "remote_maintenance"
 
 // GET /api/v1/modules - superadmin only, returns all modules with metrics
 func ListModules(c *fiber.Ctx) error {
@@ -16,7 +23,8 @@ func ListModules(c *fiber.Ctx) error {
 	}
 
 	var modules []models.Module
-	if err := database.DB.Preload("Metrics").Order("created_at ASC").Find(&modules).Error; err != nil {
+	// Expert Guided Remote Maintenance module is hidden here (it lives on a separate site).
+	if err := database.DB.Preload("Metrics").Where("LOWER(code) <> ?", HiddenModuleCode).Order("created_at ASC").Find(&modules).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to fetch modules"})
 	}
 
@@ -26,7 +34,7 @@ func ListModules(c *fiber.Ctx) error {
 // GET /api/v1/modules/active - all authenticated users, returns only active modules with metrics
 func ListActiveModules(c *fiber.Ctx) error {
 	var modules []models.Module
-	if err := database.DB.Preload("Metrics").Where("is_active = ?", true).Order("created_at ASC").Find(&modules).Error; err != nil {
+	if err := database.DB.Preload("Metrics").Where("is_active = ? AND LOWER(code) <> ?", true, HiddenModuleCode).Order("created_at ASC").Find(&modules).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to fetch modules"})
 	}
 
@@ -109,6 +117,13 @@ func CreateModuleMetric(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
 	}
 
+	if msg := validateLimits(req.Limits); msg != "" {
+		return c.Status(400).JSON(fiber.Map{"error": msg})
+	}
+	if msg := validateNodeTemplate(req.NodeID); msg != "" {
+		return c.Status(400).JSON(fiber.Map{"error": msg})
+	}
+
 	mID, _ := uuid.Parse(moduleID)
 	metric := models.ModuleMetric{
 		ID:       uuid.New(),
@@ -116,12 +131,18 @@ func CreateModuleMetric(c *fiber.Ctx) error {
 		Name:     req.Name,
 		Code:     req.Code,
 		Unit:     req.Unit,
+		NodeID:   strings.TrimSpace(req.NodeID),
+	}
+	if req.Limits != nil {
+		metric.WarnMin, metric.WarnMax = req.Limits.WarnMin, req.Limits.WarnMax
+		metric.CritMin, metric.CritMax = req.Limits.CritMin, req.Limits.CritMax
 	}
 
 	if err := database.DB.Create(&metric).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to create metric"})
 	}
 
+	alerts.Invalidate()
 	return c.Status(201).JSON(metric)
 }
 
@@ -153,6 +174,22 @@ func UpdateModuleMetric(c *fiber.Ctx) error {
 	if req.Unit != nil {
 		updates["unit"] = *req.Unit
 	}
+	if req.NodeID != nil {
+		if msg := validateNodeTemplate(*req.NodeID); msg != "" {
+			return c.Status(400).JSON(fiber.Map{"error": msg})
+		}
+		updates["node_id"] = strings.TrimSpace(*req.NodeID)
+	}
+	if req.Limits != nil {
+		if msg := validateLimits(req.Limits); msg != "" {
+			return c.Status(400).JSON(fiber.Map{"error": msg})
+		}
+		// nil clears a limit
+		updates["warn_min"] = req.Limits.WarnMin
+		updates["warn_max"] = req.Limits.WarnMax
+		updates["crit_min"] = req.Limits.CritMin
+		updates["crit_max"] = req.Limits.CritMax
+	}
 
 	if len(updates) > 0 {
 		if err := database.DB.Model(&metric).Updates(updates).Error; err != nil {
@@ -160,6 +197,7 @@ func UpdateModuleMetric(c *fiber.Ctx) error {
 		}
 	}
 
+	alerts.Invalidate()
 	database.DB.First(&metric, "id = ?", metric.ID)
 	return c.JSON(metric)
 }
@@ -182,4 +220,24 @@ func DeleteModuleMetric(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "metric deleted successfully"})
+}
+
+// validateLimits checks that limits are ordered:
+// crit_min ≤ warn_min ≤ warn_max ≤ crit_max (for whichever are set).
+func validateLimits(l *models.MetricLimits) string {
+	if l == nil {
+		return ""
+	}
+	seq := []struct {
+		name string
+		v    *float64
+	}{{"crit_min", l.CritMin}, {"warn_min", l.WarnMin}, {"warn_max", l.WarnMax}, {"crit_max", l.CritMax}}
+	for i := 0; i < len(seq); i++ {
+		for j := i + 1; j < len(seq); j++ {
+			if seq[i].v != nil && seq[j].v != nil && *seq[i].v > *seq[j].v {
+				return seq[i].name + " must not be greater than " + seq[j].name
+			}
+		}
+	}
+	return ""
 }

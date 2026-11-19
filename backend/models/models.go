@@ -157,10 +157,53 @@ type ModuleMetric struct {
 	Name     string    `json:"name"`
 	Code     string    `json:"code"`
 	Unit     string    `json:"unit"`
+	NodeID   string    `json:"node_id"` // OPC UA node ID (e.g., "ns=2;s=Voltage")
+
+	// Optional alert limits (NULL = not checked). See add_metric_limits_and_alerts.sql.
+	WarnMin *float64 `json:"warn_min"`
+	WarnMax *float64 `json:"warn_max"`
+	CritMin *float64 `json:"crit_min"`
+	CritMax *float64 `json:"crit_max"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// MetricLimits is the request shape for setting a metric's limits. When sent,
+// all four values are replaced (null clears a limit).
+type MetricLimits struct {
+	WarnMin *float64 `json:"warn_min"`
+	WarnMax *float64 `json:"warn_max"`
+	CritMin *float64 `json:"crit_min"`
+	CritMax *float64 `json:"crit_max"`
+}
+
+// Alert is one limit breach on a machine metric. See internal alerts package.
+type Alert struct {
+	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CompanyID      uuid.UUID  `json:"company_id" gorm:"type:uuid;not null"`
+	MachineID      uuid.UUID  `json:"machine_id" gorm:"type:uuid;not null"`
+	ModuleID       *uuid.UUID `json:"module_id" gorm:"type:uuid"`
+	MetricID       *uuid.UUID `json:"metric_id" gorm:"type:uuid"`
+	MetricKey      string     `json:"metric_key"`
+	Severity       string     `json:"severity"`  // warning | critical
+	Direction      string     `json:"direction"` // high | low
+	TriggerValue   float64    `json:"trigger_value"`
+	PeakValue      float64    `json:"peak_value"`
+	LimitValue     float64    `json:"limit_value"`
+	Unit           string     `json:"unit"`
+	Message        string     `json:"message"`
+	Status         string     `json:"status"` // open | resolved
+	StartedAt      time.Time  `json:"started_at"`
+	LastSeenAt     time.Time  `json:"last_seen_at"`
+	ResolvedAt     *time.Time `json:"resolved_at"`
+	AcknowledgedAt *time.Time `json:"acknowledged_at"`
+	AcknowledgedBy *uuid.UUID `json:"acknowledged_by" gorm:"type:uuid"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+func (Alert) TableName() string { return "alerts" }
 
 type Machine struct {
 	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
@@ -268,15 +311,19 @@ type ToggleModuleRequest struct {
 }
 
 type CreateModuleMetricRequest struct {
-	Name string `json:"name"`
-	Code string `json:"code"`
-	Unit string `json:"unit"`
+	Name   string        `json:"name"`
+	Code   string        `json:"code"`
+	Unit   string        `json:"unit"`
+	NodeID string        `json:"node_id"` // OPC UA node template, e.g. ns=2;s={machine_code}.Voltage
+	Limits *MetricLimits `json:"limits"`
 }
 
 type UpdateModuleMetricRequest struct {
-	Name *string `json:"name"`
-	Code *string `json:"code"`
-	Unit *string `json:"unit"`
+	Name   *string       `json:"name"`
+	Code   *string       `json:"code"`
+	Unit   *string       `json:"unit"`
+	NodeID *string       `json:"node_id"`
+	Limits *MetricLimits `json:"limits"` // when present, replaces all four limits
 }
 
 type MachineStat struct {
@@ -322,3 +369,25 @@ type AuthContext struct {
 	CompanyID   uuid.UUID
 	Permissions map[string]bool
 }
+
+// ─── OPC UA edge gateways (add_opcua_gateways.sql) ─────────────────────────
+
+// OPCUAGateway is an on-site agent that reads a plant OPC UA server and pushes
+// readings to /gateway/v1/*, authenticating with an API key (only its hash is stored).
+type OPCUAGateway struct {
+	ID                  uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CompanyID           uuid.UUID      `json:"company_id" gorm:"type:uuid;not null"`
+	Name                string         `json:"name"`
+	KeyPrefix           string         `json:"key_prefix"`
+	KeyHash             string         `json:"-"`
+	IsActive            bool           `json:"is_active" gorm:"default:true"`
+	PollIntervalSeconds int            `json:"poll_interval_seconds" gorm:"default:5"`
+	LastSeenAt          *time.Time     `json:"last_seen_at"`
+	LastIP              *string        `json:"last_ip"`
+	AgentVersion        *string        `json:"agent_version"`
+	Status              map[string]any `json:"status" gorm:"type:jsonb;serializer:json"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+}
+
+func (OPCUAGateway) TableName() string { return "opcua_gateways" }

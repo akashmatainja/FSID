@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/companyuser/backend/alerts"
 	"math"
 	"math/rand"
 	"strconv"
@@ -129,7 +130,9 @@ func Simulate(c *fiber.Ctx) error {
 			MetricValue: value,
 			Meta:        map[string]any{"unit": metric.Unit, "simulated": true, "module_id": metric.ModuleID, "metric_id": metric.ID},
 		}
-		database.DB.Create(&stat)
+		if database.DB.Create(&stat).Error == nil {
+			alerts.EvaluateStats([]models.MachineStat{stat})
+		}
 		inserted++
 		time.Sleep(interval)
 	}

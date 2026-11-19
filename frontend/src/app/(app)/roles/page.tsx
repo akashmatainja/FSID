@@ -166,9 +166,9 @@ export default function RolesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+            <table className="data-table w-full text-left border-collapse whitespace-nowrap">
               <thead>
-                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                   <th className="p-4 pl-6">Role Identity</th>
                   {isSuperadmin && <th className="p-4">Organization</th>}
                   <th className="p-4">Privilege Matrix</th>
@@ -195,7 +195,7 @@ export default function RolesPage() {
                             <span className="font-bold text-foreground text-sm group-hover:text-amber-500 transition-colors">
                               {r.name}
                             </span>
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-muted text-muted-foreground border border-border/50 shrink-0">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground border border-border/50 shrink-0">
                               {r.role_permissions?.length || 0} permissions
                             </span>
                           </div>
@@ -232,7 +232,7 @@ export default function RolesPage() {
                           return (
                             <span 
                               key={rp.permission_id} 
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-medium border ${colorClass} truncate max-w-[120px] uppercase tracking-wider`}
+                              className={`text-xs px-2 py-0.5 rounded-md font-mono font-medium border ${colorClass} truncate max-w-[120px] uppercase tracking-wider`}
                               title={rp.permission?.description}
                             >
                               {permKey}
@@ -240,12 +240,12 @@ export default function RolesPage() {
                           );
                         })}
                         {(r.role_permissions?.length || 0) > 4 && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-muted text-muted-foreground border border-border/50 uppercase tracking-wider">
+                          <span className="text-xs px-2 py-0.5 rounded-md font-bold bg-muted text-muted-foreground border border-border/50 uppercase tracking-wider">
                             +{(r.role_permissions?.length || 0) - 4} more
                           </span>
                         )}
                         {(r.role_permissions?.length || 0) === 0 && (
-                          <span className="text-[10px] text-muted-foreground italic">No privileges assigned</span>
+                          <span className="text-xs text-muted-foreground italic">No privileges assigned</span>
                         )}
                       </div>
                     </td>
@@ -408,9 +408,9 @@ export default function RolesPage() {
                                 {p.description}
                               </p>
                               <div className="flex gap-1.5 mt-1">
-                                {isWritePerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">Write Access</span>}
-                                {isSuperadminPerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-purple-500/10 text-purple-500 border border-purple-500/20 animate-pulse">Critical System Node</span>}
-                                {!isWritePerm && !isSuperadminPerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">Read Access</span>}
+                                {isWritePerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs uppercase tracking-wider font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">Write Access</span>}
+                                {isSuperadminPerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs uppercase tracking-wider font-bold bg-purple-500/10 text-purple-500 border border-purple-500/20 animate-pulse">Critical System Node</span>}
+                                {!isWritePerm && !isSuperadminPerm && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs uppercase tracking-wider font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">Read Access</span>}
                               </div>
                             </div>
                           </label>

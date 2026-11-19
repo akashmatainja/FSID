@@ -79,9 +79,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden selection:bg-brand-500/30">
       {/* Background decoration */}
-      <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand-500/10 blur-[120px] mix-blend-multiply opacity-50 animate-pulse-slow"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/10 blur-[120px] mix-blend-multiply opacity-50 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+      {/* Navy band with a faint grid, matching the app sidebar */}
+      <div className="absolute inset-x-0 top-0 h-[46%] pointer-events-none bg-gradient-to-b from-sidebar to-sidebar-deep overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }}
+        />
+        <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[60%] h-48 rounded-full bg-brand-500/25 blur-[90px]" />
       </div>
 
       <motion.div
@@ -94,8 +98,8 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/25 mb-5 ring-1 ring-brand-400/20">
             <Activity className="w-7 h-7 text-white drop-shadow-md" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">FSID</h1>
-          <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-widest">Enterprise Platform</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">FSID</h1>
+          <p className="text-sm font-medium text-sidebar-muted mt-2 uppercase tracking-widest">Energy Platform</p>
         </div>
 
         <div className="glass-card p-8 sm:p-10 shadow-glass-lg relative overflow-hidden">

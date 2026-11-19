@@ -301,7 +301,7 @@ export default function BranchDetailPage() {
         <div className="glass-card p-6">
           <h3 className="text-lg font-bold text-foreground mb-4">Machines at this Branch</h3>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="data-table w-full">
               <thead>
                 <tr className="border-b border-border/50">
                   <th className="text-left py-2 px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Machine</th>
@@ -313,7 +313,7 @@ export default function BranchDetailPage() {
               </thead>
               <tbody>
                 {machines.map((machine) => (
-                  <tr key={machine.id} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
+                  <tr key={machine.id} className={machine.status === "maintenance" ? "row-warning" : ""}>
                     <td className="py-3 px-4">
                       <button
                         onClick={() => router.push(`/machines/${machine.id}`)}

@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"github.com/companyuser/backend/alerts"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/companyuser/backend/database"
+	"github.com/companyuser/backend/hub"
 	"github.com/companyuser/backend/middleware"
 	"github.com/companyuser/backend/models"
 	"github.com/gofiber/fiber/v2"
@@ -491,7 +494,15 @@ func GetMachineStats(c *fiber.Ctx) error {
 	// Query params
 	metricKey := c.Query("metric_key")
 	since := c.Query("since") // ISO timestamp
-	limit := 200
+	// Optional ?limit= (default 200, max 5000) so longer ranges (24h / 7d) aren't
+	// truncated to the most recent few minutes.
+	limit := c.QueryInt("limit", 200)
+	if limit <= 0 {
+		limit = 200
+	}
+	if limit > 5000 {
+		limit = 5000
+	}
 
 	query = database.DB.Model(&models.MachineStat{}).
 		Where("machine_id = ?", id).
@@ -550,7 +561,115 @@ func IngestMachineStat(c *fiber.Ctx) error {
 	if err := database.DB.Create(&stat).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
+	alerts.EvaluateStats([]models.MachineStat{stat})
 	return c.Status(201).JSON(stat)
+}
+
+// POST /opcua/ingest - legacy batch ingest for custom OPC UA clients.
+// Requires a gateway API key (middleware.GatewayAuth); readings are accepted
+// only for machines of the gateway's company. New clients should use
+// /gateway/v1/ingest (see gateway/README.md).
+func IngestOPCUAData(c *fiber.Ctx) error {
+	gw := middleware.GetGateway(c)
+	if gw == nil {
+		return c.Status(401).JSON(fiber.Map{"error": "missing gateway key"})
+	}
+
+	// Define a local struct for the request body
+	type OPCUAMetric struct {
+		MachineID   string    `json:"machine_id"`
+		CompanyID   string    `json:"company_id"`
+		MetricKey   string    `json:"metric_key"`
+		MetricValue float64   `json:"metric_value"`
+		Timestamp   time.Time `json:"timestamp"`
+		Unit        string    `json:"unit"`
+		Source      string    `json:"source"`
+	}
+
+	var metrics []OPCUAMetric
+	if err := c.BodyParser(&metrics); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+
+	if len(metrics) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "no metrics provided"})
+	}
+
+	// Validate machine_id and company_id
+	machineIDStr := metrics[0].MachineID
+	companyIDStr := metrics[0].CompanyID
+
+	machineID, err := uuid.Parse(machineIDStr)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid machine id"})
+	}
+
+	companyID, err := uuid.Parse(companyIDStr)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid company id"})
+	}
+	if companyID != gw.CompanyID {
+		return c.Status(403).JSON(fiber.Map{"error": "machine belongs to another company"})
+	}
+
+	var machine models.Machine
+	if err := database.DB.
+		Where("id = ? AND company_id = ?", machineID, companyID).
+		First(&machine).Error; err != nil {
+		log.Printf("[ingest] machine lookup failed for %s: %v", machineIDStr, err)
+		return c.Status(404).JSON(fiber.Map{"error": "machine not found"})
+	}
+
+	// Store metrics in database
+	stats := make([]models.MachineStat, 0, len(metrics))
+	for _, m := range metrics {
+		ts := m.Timestamp
+		if ts.IsZero() {
+			ts = time.Now()
+		}
+
+		stat := models.MachineStat{
+			ID:          uuid.New(),
+			CompanyID:   companyID,
+			MachineID:   machineID,
+			Ts:          ts,
+			MetricKey:   m.MetricKey,
+			MetricValue: m.MetricValue,
+			Meta:        map[string]interface{}{"unit": m.Unit, "source": m.Source},
+		}
+		stats = append(stats, stat)
+	}
+
+	if err := database.DB.Create(&stats).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	alerts.EvaluateStats(stats)
+
+	// Broadcast to WebSocket hub for real-time updates
+	payloads := make([]hub.MetricPayload, 0, len(metrics))
+	for _, m := range metrics {
+		ts := m.Timestamp
+		if ts.IsZero() {
+			ts = time.Now()
+		}
+		payloads = append(payloads, hub.MetricPayload{
+			MachineID:   machineIDStr,
+			CompanyID:   companyIDStr,
+			MetricKey:   m.MetricKey,
+			MetricValue: m.MetricValue,
+			Timestamp:   ts,
+			Unit:        m.Unit,
+			Source:      m.Source,
+		})
+	}
+	if hub.GlobalHub != nil {
+		hub.GlobalHub.Broadcast(machineIDStr, payloads)
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "metrics ingested successfully",
+		"count":   len(metrics),
+	})
 }
 
 // GET /api/v1/machines/:id/users
@@ -715,7 +834,8 @@ func GetMachineModules(c *fiber.Ctx) error {
 	// Only return active modules
 	activeModules := make([]models.Module, 0)
 	for _, mod := range machine.Modules {
-		if mod.IsActive {
+		// Skip the Expert Guided Remote Maintenance module (moved to a separate site).
+		if mod.IsActive && strings.ToLower(mod.Code) != HiddenModuleCode {
 			activeModules = append(activeModules, mod)
 		}
 	}

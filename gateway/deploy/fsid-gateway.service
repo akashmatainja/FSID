@@ -1,0 +1,28 @@
+# systemd unit for the FSID gateway (Linux / Raspberry Pi).
+#
+#   sudo useradd --system --home /opt/fsid-gateway --shell /usr/sbin/nologin fsid
+#   sudo mkdir -p /opt/fsid-gateway && sudo cp fsid-gateway gateway.json /opt/fsid-gateway/
+#   sudo chown -R fsid:fsid /opt/fsid-gateway && sudo chmod 600 /opt/fsid-gateway/gateway.json
+#   sudo cp fsid-gateway.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now fsid-gateway
+#   journalctl -u fsid-gateway -f        # follow the log
+
+[Unit]
+Description=FSID OPC UA edge gateway
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=fsid
+WorkingDirectory=/opt/fsid-gateway
+ExecStart=/opt/fsid-gateway/fsid-gateway -config /opt/fsid-gateway/gateway.json
+Restart=always
+RestartSec=10
+# Gives the gateway time to upload or save its buffer on shutdown.
+TimeoutStopSec=20
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/fsid-gateway
+
+[Install]
+WantedBy=multi-user.target

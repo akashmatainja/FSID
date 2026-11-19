@@ -52,8 +52,91 @@ export interface ModuleMetric {
   name: string;
   code: string;
   unit: string;
+  /** OPC UA node template, e.g. ns=2;s={machine_code}.Voltage (empty = not read). */
+  node_id?: string;
+  /** Alert limits; null/undefined = not checked. */
+  warn_min?: number | null;
+  warn_max?: number | null;
+  crit_min?: number | null;
+  crit_max?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export type AlertSeverity = "warning" | "critical";
+
+export interface Alert {
+  id: string;
+  company_id: string;
+  machine_id: string;
+  module_id: string | null;
+  metric_id: string | null;
+  metric_key: string;
+  severity: AlertSeverity;
+  direction: "high" | "low";
+  trigger_value: number;
+  peak_value: number;
+  limit_value: number;
+  unit: string;
+  message: string;
+  status: "open" | "resolved";
+  started_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  machine_name: string;
+  machine_code: string;
+  module_code: string;
+  module_name: string;
+}
+
+export interface OverviewMetric {
+  metric_id: string;
+  code: string;
+  name: string;
+  unit: string;
+  warn_min: number | null;
+  warn_max: number | null;
+  crit_min: number | null;
+  crit_max: number | null;
+  samples: number;
+  in_limits: number;
+  compliance: number | null;
+  avg: number | null;
+  min: number | null;
+  max: number | null;
+}
+
+export interface OverviewMachineMetric {
+  machine_id: string;
+  metric_id: string;
+  samples: number;
+  in_limits: number;
+  compliance: number | null;
+  avg: number;
+  min: number;
+  max: number;
+}
+
+export interface OverviewModule {
+  module_id: string;
+  code: string;
+  name: string;
+  machine_count: number;
+  compliance: number | null;
+  open_alerts: number;
+  critical: number;
+  warning: number;
+  metrics: OverviewMetric[];
+  per_machine: OverviewMachineMetric[];
+}
+
+export interface DashboardOverview {
+  since: string;
+  until: string;
+  alerts: { open: number; critical: number; warning: number };
+  modules: OverviewModule[];
 }
 
 export interface Module {
@@ -226,3 +309,155 @@ export const METRIC_COLORS: Record<MetricKey, string> = {
 };
 
 export type DateRange = "15m" | "1h" | "24h" | "7d" | "custom";
+
+export type HealthStatus = "good" | "watch" | "critical" | "unknown";
+
+export interface HealthMetric {
+  metric_id: string;
+  code: string;
+  name: string;
+  unit: string;
+  latest: number | null;
+  samples: number;
+  has_data: boolean;
+  score: number;
+  /** Stress of the latest reading, 0 (healthy) … 1 (far past critical). */
+  condition: number;
+  out_of_limits_pct: number;
+  /** Extra stress if the 24 h trend continues, 0 … 1. */
+  trend: number;
+  slope_per_hour: number | null;
+  hours_to_limit: number | null;
+  projected_24h: number | null;
+}
+
+export interface MachineHealth {
+  machine_id: string;
+  code: string;
+  name: string;
+  score: number | null;
+  status: HealthStatus;
+  hours_to_limit: number | null;
+  limit_metric?: string;
+  open_critical: number;
+  open_warning: number;
+  metrics: HealthMetric[];
+}
+
+export interface PredictiveHealth {
+  since: string;
+  until: string;
+  machines: MachineHealth[];
+}
+
+export interface HealthHistoryPoint {
+  ts: string;
+  /** Hourly score, or the daily average when bucket = day. */
+  score: number;
+  /** Lowest hourly score in the bucket. */
+  min_score: number;
+  status: Exclude<HealthStatus, "unknown">;
+  hours_to_limit: number | null;
+  open_critical: number;
+  open_warning: number;
+}
+
+export interface HealthHistory {
+  since: string;
+  until: string;
+  bucket: "hour" | "day";
+  machines: { machine_id: string; code: string; name: string; points: HealthHistoryPoint[] }[];
+}
+
+/** One historical reading from GET /api/v1/logs/readings. */
+export type ReadingStatus = "normal" | "warning" | "critical" | "no_limits" | "unknown";
+
+export interface ReadingLog {
+  id: string;
+  ts: string;
+  machine_id: string;
+  machine_name: string;
+  machine_code: string;
+  metric_key: string;
+  metric_name: string | null;
+  unit: string | null;
+  module_name: string | null;
+  module_code: string | null;
+  metric_value: number;
+  status: ReadingStatus;
+}
+
+export interface ReadingLogPage {
+  items: ReadingLog[];
+  total: number;
+  page: number;
+  page_size: number;
+  from: string;
+  to: string;
+}
+
+// ─── OPC UA edge gateways ───────────────────────────────────────────────────
+
+export interface GatewayNodeProblem {
+  machine_code: string;
+  metric_key: string;
+  node_id: string;
+  error: string;
+}
+
+/** Last health report sent by the gateway agent (free-form, all optional). */
+export interface GatewayStatus {
+  agent_version?: string;
+  hostname?: string;
+  opcua_endpoint?: string;
+  security_policy?: string;
+  security_mode?: string;
+  opcua_connected?: boolean;
+  opcua_error?: string;
+  nodes_ok?: number;
+  nodes_bad?: number;
+  node_problems?: GatewayNodeProblem[];
+  buffered?: number;
+  dropped?: number;
+  readings_sent?: number;
+  upload_error?: string;
+  last_poll_at?: string;
+  last_upload_at?: string;
+  reported_at?: string;
+}
+
+export interface Gateway {
+  id: string;
+  company_id: string;
+  company_name: string;
+  name: string;
+  key_prefix: string;
+  is_active: boolean;
+  poll_interval_seconds: number;
+  last_seen_at: string | null;
+  last_ip: string | null;
+  agent_version: string | null;
+  status: GatewayStatus | null;
+  machine_count: number;
+  online: boolean;
+  created_at: string;
+}
+
+export interface MachineMetricNode {
+  metric_id: string;
+  metric_code: string;
+  metric_name: string;
+  unit: string;
+  module_name: string;
+  /** Module-level template (module_metrics.node_id). */
+  template: string;
+  /** Per-machine override, if set. */
+  override: string | null;
+  /** What the gateway will actually read ("" = not read). */
+  effective: string;
+}
+
+export interface MachineOpcua {
+  gateway_id: string | null;
+  metrics: MachineMetricNode[];
+}

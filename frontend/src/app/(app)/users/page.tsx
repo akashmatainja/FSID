@@ -8,7 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { CompanyUser, Role, Company, Branch, Subdivision } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import CustomSelect from "@/components/ui/CustomSelect";
-import AnimatedPagination from "@/components/ui/AnimatedPagination";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
+import { formatDateTime } from "@/lib/utils";
 
 export default function UsersPage() {
   const { permissions, companyUser } = useAuth();
@@ -226,9 +227,9 @@ export default function UsersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+            <table className="data-table w-full text-left border-collapse whitespace-nowrap">
               <thead>
-                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                   <th className="p-4 pl-6">Operator & Status</th>
                   <th className="p-4">Contact Gateway</th>
                   <th className="p-4">Access Level</th>
@@ -276,11 +277,11 @@ export default function UsersPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                            <span className="uppercase tracking-wider text-[10px] font-semibold">{user.status === "active" ? "ACTIVE" : "SUSPENDED"}</span>
+                            <span className="uppercase tracking-wider text-xs font-semibold">{user.status === "active" ? "ACTIVE" : "SUSPENDED"}</span>
                             <span className="w-1 h-1 rounded-full bg-border" />
                             <span className="flex items-center gap-1.5 font-sans">
                               <Calendar className="w-3 h-3 text-emerald-500/50" />
-                              Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                              Joined {formatDateTime(user.created_at)}
                             </span>
                           </div>
                         </div>
@@ -299,14 +300,14 @@ export default function UsersPage() {
                         {user.user_roles?.map((ur) => (
                           <span
                             key={ur.role_id}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-brand-500/10 text-brand-500 border-brand-500/20 text-[10px] font-bold uppercase tracking-wider"
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-brand-500/10 text-brand-500 border-brand-500/20 text-xs font-bold uppercase tracking-wider"
                           >
                             <Shield className="w-3 h-3" />
                             {ur.role?.name || "Role"}
                           </span>
                         ))}
                         {(!user.user_roles || user.user_roles.length === 0) && (
-                          <span className="text-[10px] font-medium text-muted-foreground opacity-50 italic">No privileges</span>
+                          <span className="text-xs font-medium text-muted-foreground opacity-50 italic">No privileges</span>
                         )}
                       </div>
                     </td>

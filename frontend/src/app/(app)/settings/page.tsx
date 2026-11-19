@@ -239,8 +239,8 @@ export default function SettingsPage() {
                       className="mt-3 bg-muted/30 p-3 rounded-xl border border-border/50"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Password Strength</span>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Password Strength</span>
+                        <span className={`text-xs font-bold uppercase tracking-wider ${
                           passwordStrength <= 1 ? 'text-red-500' :
                           passwordStrength === 2 ? 'text-amber-500' :
                           passwordStrength === 3 ? 'text-brand-500' : 'text-emerald-500'
@@ -355,7 +355,7 @@ export default function SettingsPage() {
                   <User className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Full Name</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Full Name</p>
                   <p className="text-sm font-bold text-foreground truncate">{companyUser?.name || "—"}</p>
                 </div>
               </div>
@@ -365,7 +365,7 @@ export default function SettingsPage() {
                   <Mail className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Email Address</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email Address</p>
                   <p className="text-sm font-bold text-foreground truncate">{companyUser?.email || "—"}</p>
                 </div>
               </div>
@@ -375,7 +375,7 @@ export default function SettingsPage() {
                   <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-wider">Account Status</p>
+                  <p className="text-xs font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-wider">Account Status</p>
                   <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 capitalize">{companyUser?.status || "—"}</p>
                 </div>
               </div>

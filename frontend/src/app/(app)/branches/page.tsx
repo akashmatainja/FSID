@@ -227,9 +227,9 @@ export default function BranchesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+            <table className="data-table w-full text-left border-collapse whitespace-nowrap">
               <thead>
-                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
+                <tr className="border-b border-border/50 bg-muted/20 text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                   <th className="p-4 pl-6">Branch Hub & Status</th>
                   {isSuperadmin && <th className="p-4">Organization</th>}
                   <th className="p-4">Geographic Node</th>
@@ -280,7 +280,7 @@ export default function BranchesPage() {
                           <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                             <span>#{b.code}</span>
                             <span className="w-1 h-1 rounded-full bg-border" />
-                            <span className="uppercase tracking-wider text-[10px] font-semibold">{b.status}</span>
+                            <span className="uppercase tracking-wider text-xs font-semibold">{b.status}</span>
                           </div>
                         </div>
                       </div>
@@ -300,7 +300,7 @@ export default function BranchesPage() {
                         <MapPin className="w-4 h-4 text-brand-500/70" />
                         {b.city ? `${b.city}, ${b.state}` : b.state || "Location Unspecified"}
                       </div>
-                      <div className="text-[10px] px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider inline-flex mt-1">
+                      <div className="text-xs px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider inline-flex mt-1">
                         Regional Node
                       </div>
                     </td>

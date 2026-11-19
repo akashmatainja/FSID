@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Company } from "@/types";
 import EnergyPulseLoader from "@/components/ui/EnergyPulseLoader";
 import CustomSelect from "@/components/ui/CustomSelect";
-import AnimatedPagination from "@/components/ui/AnimatedPagination";
+import AnimatedPagination from "@/components/ui/AnimatedPagination";
+import { formatDateTime } from "@/lib/utils";
 
 export default function CompaniesPage() {
   const router = useRouter();
@@ -267,14 +268,14 @@ export default function CompaniesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="data-table w-full">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/20">
-                  <th className="p-4 pl-6 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Organization Details</th>
-                  <th className="p-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Network Span</th>
-                  <th className="p-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Equipment Load</th>
-                  <th className="p-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">System Status</th>
-                  <th className="p-4 pr-6 text-right text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
+                  <th className="p-4 pl-6 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Organization Details</th>
+                  <th className="p-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Network Span</th>
+                  <th className="p-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Equipment Load</th>
+                  <th className="p-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">System Status</th>
+                  <th className="p-4 pr-6 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
@@ -285,7 +286,7 @@ export default function CompaniesPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() => handleView(company)}
-                    className="group hover:bg-muted/10 transition-colors cursor-pointer relative"
+                    className={`group cursor-pointer relative ${company.status === "suspended" ? "row-critical" : ""}`}
                   >
                     <td className="p-4 pl-6 relative">
                       {/* Active Status Left Indicator */}
@@ -322,7 +323,7 @@ export default function CompaniesPage() {
                             <span className="w-1 h-1 rounded-full bg-border" />
                             <span className="flex items-center gap-1.5 font-sans">
                               <Calendar className="w-3 h-3 text-brand-500/50" />
-                              {new Date(company.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                              {formatDateTime(company.created_at)}
                             </span>
                           </div>
                         </div>
@@ -355,14 +356,14 @@ export default function CompaniesPage() {
                         <span className="text-lg font-bold text-foreground font-mono tracking-tight">{company.machine_count || 0}</span>
                         <span className="text-xs text-brand-500 font-bold tracking-widest uppercase">Machines</span>
                       </div>
-                      <div className="text-[10px] px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider inline-flex mt-1">
+                      <div className="text-xs px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded border border-brand-500/20 font-bold uppercase tracking-wider inline-flex mt-1">
                         Active Monitoring
                       </div>
                     </td>
 
                     <td className="p-4">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border shrink-0 ${
                           company.status === "active"
                             ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border-brand-500/20"
                             : company.status === "suspended"
@@ -498,7 +499,7 @@ export default function CompaniesPage() {
                         {fieldErrors.slug ? (
                           <p className="text-xs font-medium text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {fieldErrors.slug}</p>
                         ) : (
-                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1.5 ml-1">
+                          <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground mt-1.5 ml-1">
                             Unique identifier used for routing.
                           </p>
                         )}
