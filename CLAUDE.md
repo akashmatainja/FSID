@@ -76,6 +76,7 @@ This module now lives on a separate site. Its code is kept but switched off:
 - Chart building blocks live in `components/charts/` (`TrendChart`, `RankedBars`, `RangeOverview`, `ActivityFeed`, `moduleData.ts` helpers, `palette.ts` for theme-aware series colours).
 ### Current data source: simulator (gateway awaiting client approval)
 - `simulator.go` (`StartOPCUASimulator`, started in `main.go` when `SIMULATOR_ENABLED` ≠ `false`, default on) broadcasts simulated values every 1 s, stores one sample per metric per minute in `machine_stats`, runs alerts, and reloads machines every 5 min. Machines assigned to a gateway are skipped.
+- Demo OPC UA connection: `opcua_client.go` (`StartOPCUAClient`) reads `OPCUA_ENDPOINT` (default the ABExON test server, security None) for machines whose codes are in `OPCUA_DEMO_MACHINES`: 1 s live broadcast, a stored sample every 10 s, reload every 60 s. Node per metric: `machine_metric_nodes` override → metric template → `defaultChannelNodes` (ABExON `ns=2;i=2003+5*ch`). The simulator skips those metrics via `isRealMetric`. ABExON channels currently return test counters, not sensor values.
 - Gateway UI is hidden behind `NEXT_PUBLIC_ENABLE_GATEWAY=true` (`src/lib/features.ts`); backend gateway routes stay registered. To go live: set `NEXT_PUBLIC_ENABLE_GATEWAY=true` (Vercel) and, once all machines are on gateways, `SIMULATOR_ENABLED=false` (Railway).
 
 ### OPC UA edge gateways (built, not yet enabled)

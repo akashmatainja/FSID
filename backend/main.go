@@ -44,9 +44,9 @@ func main() {
 		log.Println("[SIM] disabled (SIMULATOR_ENABLED=false)")
 	}
 
-	// Start real OPC UA client for machine data ingestion
-	// Disabled - server endpoint not accessible
-	// go StartOPCUAClient()
+	// Demo OPC UA connection: real values from OPCUA_ENDPOINT for the machines in
+	// OPCUA_DEMO_MACHINES (idle when that is empty). See opcua_client.go.
+	StartOPCUAClient()
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

@@ -10,7 +10,8 @@ package main
 //
 // Enabled by SIMULATOR_ENABLED (default true). Machines assigned to a gateway
 // (machine_opcua.gateway_id) are skipped, so real and simulated data never mix.
-// When the gateway goes live for everyone, set SIMULATOR_ENABLED=false.
+// Metrics read by the built-in OPC UA client (OPCUA_DEMO_MACHINES, opcua_client.go)
+// are skipped too. When the gateway goes live for everyone, set SIMULATOR_ENABLED=false.
 
 import (
 	"log"
@@ -203,6 +204,9 @@ func simulationLoop() {
 			payloads := make([]hub.MetricPayload, 0, len(st.metrics))
 			for _, metric := range st.metrics {
 				key := strings.ToLower(metric.Code)
+				if isRealMetric(st.machineID, key) {
+					continue // read from the OPC UA server by opcua_client.go
+				}
 				cfg := cfgFor(key)
 				v := nextValue(st.values[key], cfg, st.phase[key], now)
 				st.values[key] = v

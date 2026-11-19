@@ -28,6 +28,9 @@ type Config struct {
 	OPCUAEndpoint string
 	OPCUAUsername string
 	OPCUAPassword string
+	// Machine codes (comma-separated) read from OPCUAEndpoint by the built-in
+	// demo client (opcua_client.go). Empty = client idle.
+	OPCUADemoMachines string
 
 	// Demo data simulator (simulator.go). On until the OPC UA gateway goes live.
 	SimulatorEnabled bool
@@ -53,9 +56,10 @@ func Load() {
 		TurnUsername:   getOr("TURN_USERNAME", "openrelayproject"),
 		TurnCredential: getOr("TURN_CREDENTIAL", "openrelayproject"),
 
-		OPCUAEndpoint: getOr("OPCUA_ENDPOINT", "opc.tcp://146.196.46.162:4840/abhipsita/abexon"), // TODO: make dynamic; only used by the in-process client (StartOPCUAClient)
-		OPCUAUsername: getOr("OPCUA_USERNAME", ""),
-		OPCUAPassword: getOr("OPCUA_PASSWORD", ""),
+		OPCUAEndpoint:     getOr("OPCUA_ENDPOINT", "opc.tcp://146.196.46.162:4840/abhipsita/abexon"), // TODO: make dynamic
+		OPCUADemoMachines: getOr("OPCUA_DEMO_MACHINES", ""),
+		OPCUAUsername:     getOr("OPCUA_USERNAME", ""),
+		OPCUAPassword:     getOr("OPCUA_PASSWORD", ""),
 
 		SimulatorEnabled: getOr("SIMULATOR_ENABLED", "true") != "false",
 	}
