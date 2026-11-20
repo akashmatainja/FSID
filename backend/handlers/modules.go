@@ -7,6 +7,7 @@ import (
 	"github.com/companyuser/backend/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"log"
 	"strings"
 )
 
@@ -139,6 +140,7 @@ func CreateModuleMetric(c *fiber.Ctx) error {
 	}
 
 	if err := database.DB.Create(&metric).Error; err != nil {
+		log.Printf("create module metric: %v", err)
 		return c.Status(500).JSON(fiber.Map{"error": "failed to create metric"})
 	}
 
@@ -193,6 +195,7 @@ func UpdateModuleMetric(c *fiber.Ctx) error {
 
 	if len(updates) > 0 {
 		if err := database.DB.Model(&metric).Updates(updates).Error; err != nil {
+			log.Printf("update module metric %s: %v", metricID, err)
 			return c.Status(500).JSON(fiber.Map{"error": "failed to update metric"})
 		}
 	}
